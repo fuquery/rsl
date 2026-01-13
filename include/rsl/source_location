@@ -48,10 +48,11 @@ public:
   consteval explicit(false)
       source_location(std::source_location const& sloc,
                       std::meta::access_context ctx = std::meta::access_context::current()) {
-    auto base  = RawSloc{define_static_string(std::string_view(sloc.file_name())),
+    auto base = RawSloc{define_static_string(std::string_view(sloc.file_name())),
                         define_static_string(std::string_view(sloc.function_name())),
                         sloc.line(),
                         sloc.column()};
+    // TODO: with gcc we can use make_context directly - _impl_context is a workaround for clang
     _impl_sloc = extract<SourceContext const*>(
         substitute(^^_impl_context, {reflect_constant(ctx), std::meta::reflect_constant(base)}));
   }
@@ -59,7 +60,6 @@ public:
   consteval static source_location current(
       std::source_location sloc     = std::source_location::current(),
       std::meta::access_context ctx = std::meta::access_context::current()) {
-    // TODO: with gcc we can use make_context directly - _impl_context is a workaround for clang
     return {sloc, ctx};
   }
 
