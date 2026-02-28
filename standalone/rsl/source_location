@@ -1,0 +1,112 @@
+#include <cstddef>
+#include <meta>
+#include <source_location>
+#include <string_view>
+
+namespace rsl {
+
+class source_location {
+  struct RawSloc {
+    const char* file_name     = std::define_static_string("");
+    const char* function_name = std::define_static_string("");
+    unsigned line             = 0;
+    unsigned column           = 0;
+  };
+
+  struct SourceContext : RawSloc {
+    consteval SourceContext(RawSloc raw) : RawSloc(raw) {}
+
+    constexpr virtual ~SourceContext()                                 = default;
+    consteval virtual std::meta::info scope() const                    = 0;
+    consteval virtual std::meta::access_context access_context() const = 0;
+  };
+
+  template <std::meta::access_context R, RawSloc Data>
+  consteval static SourceContext const* make_context() {
+    struct SourceContextImpl final : SourceContext {
+      using SourceContext::SourceContext;
+      consteval std::meta::info scope() const override { return R.scope(); }
+      consteval std::meta::access_context access_context() const override { return R; }
+    };
+    constexpr static SourceContextImpl obj{Data};
+    return &obj;
+  };
+
+  // TODO: remove
+  //? this is a workaround for clang-p2996:
+  //? static member functions aren't extracted  as free functions
+  template <std::meta::access_context R, RawSloc Data>
+  constexpr static SourceContext const* _impl_context = make_context<R, Data>();
+
+  explicit consteval source_location(SourceContext const* data) : _impl_sloc(data) {}
+
+public:
+  // public to avoid violating rules for structural types
+  SourceContext const* _impl_sloc      = make_context<std::meta::access_context::unchecked(), {}>();
+  consteval source_location() noexcept = default;
+  consteval explicit(false)
+      source_location(std::source_location const& sloc,
+                      std::meta::access_context ctx = std::meta::access_context::current()) {
+    auto base  = RawSloc{define_static_string(std::string_view(sloc.file_name())),
+                        define_static_string(std::string_view(sloc.function_name())),
+                        sloc.line(),
+                        sloc.column()};
+    _impl_sloc = extract<SourceContext const*>(
+        substitute(^^_impl_context, {reflect_constant(ctx), std::meta::reflect_constant(base)}));
+  }
+
+  consteval static source_location current(
+      std::source_location sloc     = std::source_location::current(),
+      std::meta::access_context ctx = std::meta::access_context::current()) {
+    // TODO: with gcc we can use make_context directly - _impl_context is a workaround for clang
+    return {sloc, ctx};
+  }
+
+  // TODO wrap file_name and function_name in rsl::cstring_view as soon as implemented
+  [[nodiscard]] constexpr char const* file_name() const noexcept { return _impl_sloc->file_name; }
+  [[nodiscard]] constexpr char const* function_name() const noexcept {
+    return _impl_sloc->function_name;
+  }
+  [[nodiscard]] constexpr unsigned line() const noexcept { return _impl_sloc->line; }
+  [[nodiscard]] constexpr unsigned column() const noexcept { return _impl_sloc->column; }
+
+  // consteval-only extensions
+  [[nodiscard]] consteval std::meta::info scope() const noexcept { return _impl_sloc->scope(); }
+  [[nodiscard]] consteval std::meta::access_context access_context() const noexcept {
+    return _impl_sloc->access_context();
+  }
+};
+
+consteval std::meta::info current_scope(
+    std::meta::info ctx = std::meta::access_context::current().scope()) {
+  return ctx;
+}
+
+consteval std::meta::info current_function(std::meta::info scope = current_scope()) {
+  if (is_function(scope)) {
+    return scope;
+  }
+  throw "not in a function";
+}
+
+consteval std::meta::info current_class(std::meta::info scope = current_scope()) {
+  while (not is_namespace(scope)) {
+    if (is_type(scope)) {
+      return scope;
+    }
+    scope = parent_of(scope);
+  }
+  throw "not in a class";
+}
+
+consteval std::meta::info current_namespace(std::meta::info scope = current_scope()) {
+  while (scope != ^^::) {
+    if (is_namespace(scope)) {
+      return scope;
+    }
+    scope = parent_of(scope);
+  }
+  return ^^::;
+}
+
+}  // namespace rsl

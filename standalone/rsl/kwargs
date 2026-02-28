@@ -1,0 +1,742 @@
+#include <meta>
+#include <string_view>
+#include <vector>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <ranges>
+#include <cstddef>
+
+
+// ---- begin: rsl/string_constant ----
+#include <cstddef>
+#include <string_view>
+#include <algorithm>
+
+namespace rsl {
+template <std::size_t N>
+struct string_constant {
+  constexpr static auto size = N;
+  char data[N + 1]{};
+
+  consteval string_constant() = default;
+  consteval explicit(false) string_constant(const char (&str)[N + 1]) noexcept {
+    std::ranges::copy(str, str + N, data);
+  }
+
+  consteval explicit string_constant(std::same_as<char> auto... Vs)
+    requires(sizeof...(Vs) <= N)
+      : data{Vs...} {}
+
+  consteval explicit string_constant(std::string_view str) {
+    str.copy(data, std::min(str.size(), N));
+  }
+  constexpr explicit(false) operator std::string_view() const { return std::string_view{data}; }
+};
+
+template <std::size_t N>
+string_constant(char const (&)[N]) -> string_constant<N - 1>;
+}  // namespace rsl// ---- end: rsl/string_constant ----
+
+
+// ---- begin: rsl/meta ----
+#include <algorithm>
+#include <meta>
+#include <ranges>
+
+
+// ---- begin: rsl/macro ----
+
+// ---- begin: rsl/_impl/macro/attributes.hpp ----
+
+// ---- begin: compiler.hpp ----
+
+#define RSL_COMPILER_UNKNOWN 0
+#define RSL_COMPILER_CLANG   1
+#define RSL_COMPILER_GCC     2
+#define RSL_COMPILER_MSVC    3
+
+#define RSL_VERSION_ENCODE(major, minor, patch) ((major) * 1000000 + (minor) * 1000 + (patch))
+
+#if defined(__clang__)
+#  define RSL_COMPILER    RSL_COMPILER_CLANG
+#  define RSL_COMPILER_ID clang
+#  define RSL_COMPILER_VERSION \
+    RSL_VERSION_ENCODE(__clang_major__, __clang_minor__, __clang_patchlevel__)
+#elif defined(__GNUC__)
+#  define RSL_COMPILER         RSL_COMPILER_GCC
+#  define RSL_COMPILER_ID      GCC
+#  define RSL_COMPILER_VERSION RSL_VERSION_ENCODE(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
+#elif defined(_MSC_VER)
+#  define RSL_COMPILER    RSL_COMPILER_MSVC
+#  define RSL_COMPILER_ID MSVC
+#  if defined(_MSC_FULL_VER)
+#    define RSL_COMPILER_VERSION _MSC_FULL_VER
+#  else
+#    define RSL_COMPILER_VERSION _MSC_VER
+#  endif
+
+#else
+#  define RSL_COMPILER         RSL_COMPILER_UNKNOWN
+#  define RSL_COMPILER_ID      UNKNOWN
+#  define RSL_COMPILER_VERSION 0
+#endif
+
+#define RSL_STDLIB_UNKNOWN 0
+#define RSL_STDLIB_LIBCXX  1
+#define RSL_STDLIB_GLIBCXX 2
+#define RSL_STDLIB_MSVC    3
+
+#if defined(_MSC_VER) && defined(_MSVC_STL_VERSION)
+#  define RSL_STDLIB         RSL_STDLIB_MSVC
+#  define RSL_STDLIB_VERSION _MSVC_STL_VERSION
+#elif defined(__GLIBCXX__)
+#  define RSL_STDLIB         RSL_STDLIB_GLIBCXX
+#  define RSL_STDLIB_VERSION __GLIBCXX__
+#elif defined(_LIBCPP_VERSION) || defined(__llvm_libc__)
+#  define RSL_STDLIB         RSL_STDLIB_LIBCXX
+#  define RSL_STDLIB_VERSION _LIBCPP_VERSION
+#else
+#  define RSL_STDLIB         RSL_STDLIB_UNKNOWN
+#  define RSL_STDLIB_VERSION 0
+#endif
+// ---- end: compiler.hpp ----
+
+
+#if RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_ALWAYS_INLINE  [[clang::always_inline]] inline
+#  define RSL_NO_INLINE      [[clang::noinline]]
+
+#elif RSL_COMPILER == RSL_COMPILER_GCC
+#  define RSL_ALWAYS_INLINE __attribute__((always_inline)) inline
+#  define RSL_NO_INLINE     __attribute__((noinline))
+
+#elif RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_ALWAYS_INLINE __forceinline
+#  define RSL_NO_INLINE     __declspec(noinline)
+
+#endif
+
+#define RSL_INLINE_opt_never  RSL_NO_INLINE
+#define RSL_INLINE_opt_always RSL_ALWAYS_INLINE
+#define RSL_INLINE(_opt)      RSL_INLINE_opt_##_opt
+
+// Clang specific extensions
+#if RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_ENABLE_IF(...) __attribute__((enable_if(__VA_ARGS__)))
+#else
+#  define RSL_ENABLE_IF(...)
+#endif// ---- end: rsl/_impl/macro/attributes.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/opt.hpp ----
+
+#define OPT_      +
+#define OPT_true  +
+#define OPT_1     +
+#define OPT_on    +
+#define OPT_ON    +
+#define OPT_false -
+#define OPT_0     -
+#define OPT_off   -
+#define OPT_OFF   -
+
+#define OPT_DEFAULT_ON  +
+#define OPT_DEFAULT_OFF -
+
+#define OPT_IMPL_EXPAND(x) OPT_##x
+#define USES_OPT(x)        ((OPT_IMPL_EXPAND(x) 1) == 1)// ---- end: rsl/_impl/macro/opt.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/os.hpp ----
+
+#define RSL_OS_UNKNOWN 0
+#define RSL_OS_WINDOWS 1
+#define RSL_OS_LINUX   2
+#define RSL_OS_MAC     3
+#define RSL_OS_FREEBSD 4
+#define RSL_OS_ANDROID 5
+#define RSL_OS_IOS     6
+
+#if defined(_WIN32) || defined(_WIN64)
+    #define RSL_OS RSL_OS_WINDOWS
+#elif defined(__APPLE__) && defined(__MACH__)
+    #include <TargetConditionals.h>
+    #if TARGET_OS_IPHONE
+        #define RSL_OS RSL_OS_IOS
+    #else
+        #define RSL_OS RSL_OS_MAC
+    #endif
+#elif defined(__ANDROID__)
+    #define RSL_OS RSL_OS_ANDROID
+#elif defined(__FreeBSD__)
+    #define RSL_OS RSL_OS_FREEBSD
+#elif defined(__linux__)
+    #define RSL_OS RSL_OS_LINUX
+#else
+    #define RSL_OS RSL_OS_UNKNOWN
+#endif// ---- end: rsl/_impl/macro/os.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/compat.hpp ----
+#include <meta>
+
+
+#if RSL_COMPILER == RSL_COMPILER_GCC
+#  define RSL_DEFINE_STATIC_ARRAY(...) [:::std::meta::reflect_constant_array(__VA_ARGS__):]
+#else
+#  define RSL_DEFINE_STATIC_ARRAY(...) (::std::define_static_array(__VA_ARGS__))
+#endif
+// ---- end: rsl/_impl/macro/compat.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/loop.hpp ----
+
+#define RSL_IMPL_PARENS ()
+
+#define RSL_IMPL_EXPAND(...)  RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND4(...) RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND3(...) RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND2(...) RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND1(...) __VA_ARGS__
+
+#define RSL_IMPL_FOR_EACH_DELIM(macro, delim, ...)                              \
+  __VA_OPT__(RSL_IMPL_EXPAND(RSL_IMPL_FOR_EACH_DELIM_HELPER(macro, delim, __VA_ARGS__)))
+#define RSL_IMPL_FOR_EACH_DELIM_HELPER(macro, delim, a1, ...)                   \
+  macro(a1)                                                            \
+  __VA_OPT__(delim() RSL_IMPL_FOR_EACH_DELIM_AGAIN RSL_IMPL_PARENS (macro, delim, __VA_ARGS__))
+#define RSL_IMPL_FOR_EACH_DELIM_AGAIN() RSL_IMPL_FOR_EACH_DELIM_HELPER
+
+#define RSL_IMPL_DELIM_NONE()
+#define RSL_IMPL_DELIM_COMMA() ,// ---- end: rsl/_impl/macro/loop.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/diagnostic.hpp ----
+
+
+#define RSL_STRINGIZE_IMPL(x) #x
+#define RSL_STRINGIZE(x)      RSL_STRINGIZE_IMPL(x)
+#if RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_PRAGMA(x) __pragma(x)
+#else
+#  define RSL_PRAGMA(x) _Pragma(RSL_STRINGIZE(x))
+#endif
+
+
+#if RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_DIAG_PUSH        RSL_PRAGMA(warning(push))
+#  define RSL_DIAG_POP         RSL_PRAGMA(warning(pop))
+#  define RSL_DIAG_DISABLE(id) RSL_PRAGMA(warning(disable : RSL_DIAGS_##id))
+#  define RSL_DIAG_ERROR(id)   RSL_PRAGMA(warning(error : RSL_DIAGS_##id))
+#elif RSL_COMPILER == RSL_COMPILER_GCC || RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_DIAG_PUSH       RSL_PRAGMA(RSL_COMPILER_ID diagnostic push)
+#  define RSL_DIAG_POP        RSL_PRAGMA(RSL_COMPILER_ID diagnostic pop)
+#  define RSL_DIAG_DISABLE(w) RSL_PRAGMA(RSL_COMPILER_ID diagnostic ignored RSL_DIAGS_##w)
+#  define RSL_DIAG_ERROR(w)   RSL_PRAGMA(RSL_COMPILER_ID diagnostic error RSL_DIAGS_##w)
+#else
+#  warning "Unsupported compiler"
+#endif
+
+#define RSL_IMPL_CONSUME(...)
+#define RSL_DIAG_push    RSL_DIAG_PUSH RSL_IMPL_CONSUME
+#define RSL_DIAG_pop     RSL_DIAG_POP RSL_IMPL_CONSUME
+#define RSL_DIAG_disable RSL_DIAG_DISABLE
+#define RSL_DIAG_error   RSL_DIAG_ERROR
+
+// Diagnostic map
+#if RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_DIAGS_literal_suffix 4455
+#  define RSL_DIAGS_narrowing      4838
+#elif RSL_COMPILER == RSL_COMPILER_GCC
+#  define RSL_DIAGS_literal_suffix "-Wliteral-suffix"
+#  define RSL_DIAGS_narrowing      "-Wnarrowing"
+#elif RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_DIAGS_literal_suffix "-Wuser-defined-literals"
+#  define RSL_DIAGS_narrowing      "-Wc++11-narrowing"
+#else
+#  warning "Unsupported compiler"
+#endif// ---- end: rsl/_impl/macro/diagnostic.hpp ----
+
+
+// compile environment checks
+
+/**
+ * @param compiler one of UNKNOWN, CLANG, GCC, MSVC
+ */
+#define $compiler_is(compiler) (RSL_COMPILER == RSL_COMPILER_##compiler)
+
+/**
+ * @param stdlib one of UNKNOWN, LIBCXX, GLIBCXX, MSVC
+ */
+#define $stdlib_is(stdlib) (RSL_STDLIB == RSL_STDLIB_##stdlib)
+
+/**
+ * @param os one of UNKNOWN, WINDOWS, LINUX, MAC, FREEBSD, ANDROID, IOS
+ */
+#define $os_is(os) (RSL_OS == RSL_OS_##os)
+
+/// Feature macro helper
+#define $uses_opt(x) USES_OPT(x)
+
+/**
+ * @param opt one of always, never
+ */
+#define $inline(opt) RSL_INLINE(opt)
+
+/// Enable this overload if a given expression evaluates to true. Clang only.
+#define $enable_if(...) RSL_ENABLE_IF(__VA_ARGS__)
+
+//! Workaround for expansion statements in GCC
+#define $define_static_array(...) RSL_DEFINE_STATIC_ARRAY(__VA_ARGS__)
+
+/** Applies `macro` to every element and inserts delimiters produced by `delim` between elements
+ * @param macro function-like macro applied to every element
+ * @param delim function-like macro producing the delimiter
+ * @param ... elements to loop over
+*/
+#define $for_each_delim(macro, delim, ...) RSL_IMPL_FOR_EACH_DELIM(macro, delim, __VA_ARGS__)
+
+/** Applies `macro` to every element and inserts commas between elements
+ * @param macro function-like macro applied to every element
+ * @param ... elements to loop over
+*/
+#define $for_each_list(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_COMMA, __VA_ARGS__)
+
+/** Applies `macro` to every element
+ * @param macro function-like macro applied to every element
+ * @param ... elements to loop over
+*/
+#define $for_each(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_NONE, __VA_ARGS__)
+
+/**
+ * @param op one of push, pop, disable, error
+ * @param ... optional arguments
+*/
+#define $diagnostics(op, ...) RSL_DIAG_##op (__VA_ARGS__)
+
+/// Introduces an explicit template region
+#define $template template for (auto _ : "")
+// ---- end: rsl/macro ----
+
+
+namespace rsl::meta {
+
+consteval bool is_specialization(std::meta::info type, std::meta::info templ) {
+  if (not is_type(type)) {
+    throw "not a type";
+  }
+  return has_template_arguments(type) &&
+         template_of(type) == (is_template(templ) ? templ : template_of(templ));
+}
+
+using std::meta::is_function;
+
+consteval bool is_member_function(std::meta::info r) {
+  return is_function(r) && is_class_member(r);
+}
+
+consteval bool is_static_member_function(std::meta::info r) {
+  return is_member_function(r) && is_static_member(r);
+}
+
+consteval bool is_nonstatic_member_function(std::meta::info r) {
+  return is_member_function(r) && !is_static_member(r);
+}
+
+namespace _compat {
+consteval std::vector<std::meta::info> annotations_of_with_type(std::meta::info r,
+                                                                std::meta::info t) {
+#if $compiler_is(CLANG)
+  return std::meta::annotations_of(r, t);
+#else
+  return std::meta::annotations_of_with_type(r, t);
+#endif
+}
+}  // namespace _compat
+
+template <typename T>
+consteval bool has_annotation(std::meta::info item) {
+  return !_compat::annotations_of_with_type(item, ^^T).empty();
+}
+
+consteval bool has_annotation(std::meta::info item, std::meta::info type) {
+  if (is_type(type)) {
+    return !_compat::annotations_of_with_type(item, type).empty();
+  } else if (is_template(type)) {
+    for (auto annotation : annotations_of(item)) {
+      if (has_template_arguments(type_of(annotation)) && template_of(type_of(annotation)) == type) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+template <typename T>
+consteval bool has_annotation(std::meta::info item, T const& value) {
+  if (!has_annotation<T>(item)) {
+    return false;
+  }
+  auto annotations = _compat::annotations_of_with_type(item, dealias(^^T));
+  auto value_r     = std::meta::reflect_constant(value);
+  return std::ranges::any_of(annotations, [&](auto annotation) { return annotation == value_r; });
+}
+
+consteval std::vector<std::meta::info> get_annotations(std::meta::info item, std::meta::info type) {
+  std::vector<std::meta::info> annotations;
+  for (auto annotation : annotations_of(item)) {
+    if ((is_type(type) && type == type_of(annotation)) ||
+        (is_template(type) && has_template_arguments(type_of(annotation)) &&
+         template_of(type_of(annotation)) == type)) {
+      annotations.push_back(annotation);
+    }
+  }
+  return annotations;
+}
+
+consteval std::meta::info get_annotation(std::meta::info item, std::meta::info type) {
+  return get_annotations(item, type)[0];
+}
+
+consteval bool has_parent(std::meta::info R) {
+  // HACK remove this once `std::meta::has_parent` is supported in libc++
+  return R != ^^::;
+}
+
+consteval std::meta::info get_member_by_name(std::meta::info r, std::string_view name) {
+  for (auto member : members_of(r, std::meta::access_context::unprivileged())) {
+    if (has_identifier(member) && identifier_of(member) == name) {
+      return member;
+    }
+  }
+  return {};
+}
+
+namespace _impl {
+template <std::meta::info... Args>
+struct injected {
+  struct type;
+  consteval { define_aggregate(^^type, {Args...}); };
+
+  static_assert(is_complete_type(^^type));
+};
+}  // namespace _impl
+
+consteval std::meta::info inject_aggregate(std::meta::reflection_range auto&& fields) {
+  auto wrapper = substitute(^^_impl::injected, fields | std::views::transform([](auto r) {
+                                                 return std::meta::reflect_constant(r);
+                                               }));
+  auto type    = get_member_by_name(wrapper, "type");
+  return is_type(type) ? type : throw "not a type";
+}
+}  // namespace rsl::meta// ---- end: rsl/meta ----
+
+
+
+// ---- begin: rsl/_impl/parser.hpp ----
+#include <string_view>
+#include <algorithm>
+#include <concepts>
+
+namespace rsl::_impl {
+
+constexpr bool is_whitespace(char c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
+constexpr bool is_digit(char c) {
+  return c >= '0' && c <= '9';
+}
+
+constexpr bool is_integer(std::string_view str) {
+  if (str.empty()) {
+    return false;
+  }
+
+  if (str[0] == '-') {
+    str.remove_prefix(1);
+  }
+  return std::ranges::all_of(str, is_digit);
+}
+
+struct Parser {
+  std::string_view data;
+  int cursor = 0;
+
+  explicit constexpr Parser(std::string_view data) : data(data) {}
+
+  [[nodiscard]] constexpr bool is_valid() const { return cursor >= 0 && cursor < data.size(); }
+  [[nodiscard]] constexpr char current() const { return is_valid() ? data[cursor] : '\0'; }
+  [[nodiscard]] constexpr char peek() const {
+    return (is_valid() && cursor + 1 < data.size()) ? data[cursor + 1] : '\0';
+  }
+
+  constexpr bool consume(char expected) {
+    if (current() == expected) {
+      ++cursor;
+      return true;
+    }
+    return false;
+  }
+
+  constexpr void skip_whitespace() {
+    while (is_valid()) {
+      if (char c = current(); is_whitespace(c) || c == '\\') {
+        ++cursor;
+      } else {
+        break;
+      }
+    }
+  }
+
+  constexpr void skip_to(std::same_as<char> auto... needles) {
+    int brace_count = 0;
+    while (is_valid()) {
+      if (char c = current(); brace_count == 0 && ((c == needles) || ...)) {
+        break;
+      } else if (c == '[' || c == '{' || c == '(') {
+        ++brace_count;
+      } else if (c == ']' || c == '}' || c == ')') {
+        --brace_count;
+      }
+      ++cursor;
+    }
+  }
+};
+}  // namespace rsl::_impl// ---- end: rsl/_impl/parser.hpp ----
+
+
+// ---- begin: rsl/_impl/member_cache.hpp ----
+#include <cstddef>
+#include <utility>
+#include <memory>
+#include <meta>
+#include <algorithm>
+
+
+namespace rsl::_impl {
+template <std::meta::info... Members>
+struct MemberAccessor {
+  template <std::size_t Idx, typename S>
+  $inline(always) constexpr static decltype(auto) get(S&& storage) noexcept {
+    return std::forward_like<S>(storage.[:Members...[Idx]:]);
+  }
+
+  template <std::size_t Idx, typename S>
+  $inline(always) constexpr static decltype(auto) get_addr(S&& storage) noexcept {
+    return std::addressof(std::forward<S>(storage).[:Members...[Idx]:]);
+  }
+
+  constexpr static auto count                                 = sizeof...(Members);
+  constexpr static std::array<std::meta::info, count> types   = {dealias(type_of(Members))...};
+  constexpr static std::array<std::meta::info, count> members = {Members...};
+
+  static consteval std::size_t get_index_of(std::meta::info needle) {
+    constexpr std::size_t npos = ~0ZU;
+    std::size_t selected       = npos;
+    for (std::size_t idx = 0; idx < types.size(); ++idx) {
+      if (types[idx] != needle) {
+        continue;
+      }
+
+      if (selected != npos) {
+        return npos;
+      }
+
+      selected = idx;
+    }
+    return selected;
+  }
+
+  static consteval std::size_t get_index_of(std::string_view name) {
+    std::vector<std::string_view> names;
+    names.reserve(count);
+    for (auto member : std::vector<std::meta::info>{Members...}) {
+      if (not has_identifier(member)) {
+        continue;
+      }
+      names.push_back(identifier_of(member));
+    }
+
+    if (auto it = std::ranges::find(names, name); it != names.end()) {
+      return std::distance(names.begin(), it);
+    }
+    return -1UZ;
+  }
+
+  static consteval bool has_member(std::string_view name) { return get_index_of(name) != -1UZ; }
+};
+
+template <std::meta::info... Members>
+constexpr inline MemberAccessor<Members...> member_cache{};
+
+consteval auto cache_members(auto&& member_range) {
+  std::vector<std::meta::info> members;
+  for (auto member : member_range) {
+    members.push_back(std::meta::reflect_constant(member));
+  }
+  return substitute(^^member_cache, members);
+}
+
+consteval auto cache_members_t(auto&& member_range) {
+  std::vector<std::meta::info> members;
+  for (auto member : member_range) {
+    members.push_back(std::meta::reflect_constant(member));
+  }
+  return substitute(^^MemberAccessor, members);
+};
+}  // namespace rsl::_impl
+// ---- end: rsl/_impl/member_cache.hpp ----
+
+
+namespace rsl {
+
+template <typename Impl>
+struct [[nodiscard]] kwargs_t : Impl {
+  using type                          = Impl;
+  static constexpr auto _member_cache = [:_impl::cache_members(nonstatic_data_members_of(
+                                              ^^Impl,
+                                              std::meta::access_context::unchecked())):];
+};
+
+template <typename T>
+concept is_kwargs = has_template_arguments(^^T) && template_of(^^T) == ^^kwargs_t;
+
+namespace kwargs {
+struct parse_error : std::logic_error {
+  using std::logic_error::logic_error;
+};
+
+struct NameParser : _impl::Parser {
+  using _impl::Parser::Parser;
+  std::vector<std::string_view> names;
+
+  constexpr bool parse() {
+    cursor = 0;
+
+    while (is_valid()) {
+      skip_whitespace();
+      std::size_t start = cursor;
+      skip_to('=', ',', ' ', '\n', '\r', '\t');
+      if (cursor - start == 0) {
+        // invalid name
+        return false;
+      }
+      names.emplace_back(data.substr(start, cursor - start));
+
+      // skip ahead to next arg
+      // if the current character is already ',', this will not move the cursor
+      skip_to(',');
+      ++cursor;
+
+      skip_whitespace();
+    }
+    return true;
+  }
+};
+
+struct Arg {
+  template <typename T>
+  decltype(auto) operator=(T&& value) const {
+    return std::forward<T>(value);
+  }
+};
+
+consteval std::meta::info make_detector_type(std::string_view Names) {
+  auto parser = NameParser(Names);
+  if (not parser.parse()) {
+    throw parse_error("could not parse argument list");
+  }
+  return rsl::meta::inject_aggregate(parser.names | std::views::transform([](auto name) {
+                                 return data_member_spec(^^Arg, {.name = name});
+                               }));
+}
+
+template <string_constant C>
+using detector = typename[:rsl::kwargs::make_detector_type(C):];
+
+template <string_constant Expr, typename... Ts>
+consteval auto inject_wrapper() {
+  std::vector<std::meta::info> args;
+  auto members =
+      nonstatic_data_members_of(^^detector<Expr>, std::meta::access_context::unprivileged());
+  for (auto [member, type] : std::views::zip(members, std::vector<std::meta::info>{^^Ts...})) {
+    args.push_back(data_member_spec(remove_cvref(type), {.name = identifier_of(member)}));
+  }
+
+  return rsl::meta::inject_aggregate(args);
+}
+
+template <string_constant Expr, typename... Ts>
+constexpr auto make(Ts&&... values) {
+  static_assert(((not std::same_as<std::remove_cvref_t<Ts>, Arg>) && ...));
+
+  using container = kwargs_t<typename[:inject_wrapper<Expr, std::remove_cvref_t<Ts>...>():]>;
+  return container{{std::forward<Ts>(values)...}};
+}
+}  // namespace kwargs
+
+template <typename T>
+  requires is_kwargs<std::remove_cvref_t<T>>
+consteval bool has_arg(std::string_view name) {
+  return std::remove_cvref_t<T>::_member_cache.has_member(name);
+}
+
+// get
+
+template <std::size_t Idx, typename T>
+  requires is_kwargs<std::remove_cvref_t<T>>
+constexpr auto get(T&& kwargs) noexcept {
+  static_assert(std::remove_cvref_t<T>::_member_cache.count > Idx);
+  return std::remove_cvref_t<T>::_member_cache.template get<Idx>(std::forward<T>(kwargs));
+}
+
+template <string_constant name, typename T>
+  requires is_kwargs<std::remove_cvref_t<T>>
+constexpr auto get(T&& kwargs) {
+  static_assert(has_arg<T>(name), "Keyword argument `" + std::string(name) + "` not found.");
+
+  static constexpr auto Idx = std::remove_cvref_t<T>::_member_cache.get_index_of(name);
+  return get<Idx>(std::forward<T>(kwargs));
+}
+
+// get_or
+template <std::size_t Idx, typename T, typename R>
+  requires is_kwargs<std::remove_cvref_t<T>>
+constexpr auto get_or(T&& kwargs, R default_) noexcept {
+  using kwarg_tuple = std::remove_cvref_t<T>;
+  if constexpr (kwarg_tuple::_member_cache.count > Idx) {
+    return get<Idx>(std::forward<T>(kwargs));
+  } else {
+    return default_;
+  }
+}
+
+template <string_constant name, typename T, typename R>
+  requires is_kwargs<std::remove_cvref_t<T>>
+constexpr auto get_or(T&& kwargs, R default_) {
+  using kwarg_tuple = std::remove_cvref_t<T>;
+  if constexpr (kwarg_tuple::_member_cache.count >
+                std::remove_cvref_t<T>::_member_cache.get_index_of(name)) {
+    return get<name>(std::forward<T>(kwargs));
+  } else {
+    return default_;
+  }
+}
+}  // namespace rsl
+
+template <typename T>
+struct std::tuple_size<rsl::kwargs_t<T>>
+    : public integral_constant<size_t, rsl::kwargs_t<std::remove_cvref_t<T>>::_member_cache.count> {
+};
+
+template <std::size_t Idx, typename T>
+struct std::tuple_element<Idx, rsl::kwargs_t<T>> {
+  using type = [:rsl::kwargs_t<std::remove_cvref_t<T>>::_member_cache.types[Idx]:];
+};
+
+#define RSL_KWARGS_IDENTITY(x)   x
+#define RSL_KWARGS_EXPAND_ONE(d) rsl::kwargs::detector<d>{}.RSL_KWARGS_IDENTITY
+
+#define $args(...) \
+  rsl::kwargs::make<#__VA_ARGS__>($for_each(RSL_KWARGS_EXPAND_ONE(#__VA_ARGS__), __VA_ARGS__))

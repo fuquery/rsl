@@ -31,6 +31,7 @@ target_include_directories(rsl-util INTERFACE
 option(BUILD_TESTING "Enable tests" ON)
 option(BUILD_EXAMPLES "Enable examples" ON)
 option(RSL_UTIL_INSTALL "Generate install target for rsl-util" ON)
+option(RSL_UTIL_SINGLE_HEADER "Generate single-header files in include/rsl/single" ON)
 
 if (RSL_UTIL_INSTALL)
   set(CMAKE_INSTALLDIR_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/rsl-util)
@@ -59,6 +60,33 @@ if (RSL_UTIL_INSTALL)
     ${PROJECT_BINARY_DIR}/rsl-util-config.cmake
     DESTINATION ${CMAKE_INSTALLDIR_CMAKEDIR}
   )
+endif()
+
+if (RSL_UTIL_SINGLE_HEADER)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+  set(_single_dir ${CMAKE_CURRENT_LIST_DIR}/standalone/rsl)
+  file(MAKE_DIRECTORY ${_single_dir})
+
+  # Glob only files (LIST_DIRECTORIES false skips _impl/, serializer/, style/, single/)
+  file(GLOB _rsl_headers LIST_DIRECTORIES false ${CMAKE_CURRENT_LIST_DIR}/include/rsl/*)
+
+  foreach(_header IN LISTS _rsl_headers)
+    get_filename_component(_name ${_header} NAME)
+    execute_process(
+      COMMAND ${Python3_EXECUTABLE}
+              ${CMAKE_CURRENT_LIST_DIR}/scripts/construct_single_header.py
+              ${_header}
+              ${_single_dir}/${_name}
+      RESULT_VARIABLE _result
+      OUTPUT_QUIET
+    )
+    if(NOT _result EQUAL 0)
+      message(WARNING "rsl-util: failed to generate single header for ${_name}")
+    else()
+      message(STATUS "rsl-util: generated single header standalone/rsl/${_name}")
+    endif()
+  endforeach()
 endif()
 
 if (BUILD_TESTING)

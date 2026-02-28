@@ -1,0 +1,769 @@
+#include <meta>
+#include <ranges>
+#include <type_traits>
+#include <utility>
+
+// ---- begin: rsl/meta ----
+#include <algorithm>
+#include <meta>
+#include <ranges>
+
+
+// ---- begin: rsl/macro ----
+
+// ---- begin: rsl/_impl/macro/attributes.hpp ----
+
+// ---- begin: compiler.hpp ----
+
+#define RSL_COMPILER_UNKNOWN 0
+#define RSL_COMPILER_CLANG   1
+#define RSL_COMPILER_GCC     2
+#define RSL_COMPILER_MSVC    3
+
+#define RSL_VERSION_ENCODE(major, minor, patch) ((major) * 1000000 + (minor) * 1000 + (patch))
+
+#if defined(__clang__)
+#  define RSL_COMPILER    RSL_COMPILER_CLANG
+#  define RSL_COMPILER_ID clang
+#  define RSL_COMPILER_VERSION \
+    RSL_VERSION_ENCODE(__clang_major__, __clang_minor__, __clang_patchlevel__)
+#elif defined(__GNUC__)
+#  define RSL_COMPILER         RSL_COMPILER_GCC
+#  define RSL_COMPILER_ID      GCC
+#  define RSL_COMPILER_VERSION RSL_VERSION_ENCODE(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
+#elif defined(_MSC_VER)
+#  define RSL_COMPILER    RSL_COMPILER_MSVC
+#  define RSL_COMPILER_ID MSVC
+#  if defined(_MSC_FULL_VER)
+#    define RSL_COMPILER_VERSION _MSC_FULL_VER
+#  else
+#    define RSL_COMPILER_VERSION _MSC_VER
+#  endif
+
+#else
+#  define RSL_COMPILER         RSL_COMPILER_UNKNOWN
+#  define RSL_COMPILER_ID      UNKNOWN
+#  define RSL_COMPILER_VERSION 0
+#endif
+
+#define RSL_STDLIB_UNKNOWN 0
+#define RSL_STDLIB_LIBCXX  1
+#define RSL_STDLIB_GLIBCXX 2
+#define RSL_STDLIB_MSVC    3
+
+#if defined(_MSC_VER) && defined(_MSVC_STL_VERSION)
+#  define RSL_STDLIB         RSL_STDLIB_MSVC
+#  define RSL_STDLIB_VERSION _MSVC_STL_VERSION
+#elif defined(__GLIBCXX__)
+#  define RSL_STDLIB         RSL_STDLIB_GLIBCXX
+#  define RSL_STDLIB_VERSION __GLIBCXX__
+#elif defined(_LIBCPP_VERSION) || defined(__llvm_libc__)
+#  define RSL_STDLIB         RSL_STDLIB_LIBCXX
+#  define RSL_STDLIB_VERSION _LIBCPP_VERSION
+#else
+#  define RSL_STDLIB         RSL_STDLIB_UNKNOWN
+#  define RSL_STDLIB_VERSION 0
+#endif
+// ---- end: compiler.hpp ----
+
+
+#if RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_ALWAYS_INLINE  [[clang::always_inline]] inline
+#  define RSL_NO_INLINE      [[clang::noinline]]
+
+#elif RSL_COMPILER == RSL_COMPILER_GCC
+#  define RSL_ALWAYS_INLINE __attribute__((always_inline)) inline
+#  define RSL_NO_INLINE     __attribute__((noinline))
+
+#elif RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_ALWAYS_INLINE __forceinline
+#  define RSL_NO_INLINE     __declspec(noinline)
+
+#endif
+
+#define RSL_INLINE_opt_never  RSL_NO_INLINE
+#define RSL_INLINE_opt_always RSL_ALWAYS_INLINE
+#define RSL_INLINE(_opt)      RSL_INLINE_opt_##_opt
+
+// Clang specific extensions
+#if RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_ENABLE_IF(...) __attribute__((enable_if(__VA_ARGS__)))
+#else
+#  define RSL_ENABLE_IF(...)
+#endif// ---- end: rsl/_impl/macro/attributes.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/opt.hpp ----
+
+#define OPT_      +
+#define OPT_true  +
+#define OPT_1     +
+#define OPT_on    +
+#define OPT_ON    +
+#define OPT_false -
+#define OPT_0     -
+#define OPT_off   -
+#define OPT_OFF   -
+
+#define OPT_DEFAULT_ON  +
+#define OPT_DEFAULT_OFF -
+
+#define OPT_IMPL_EXPAND(x) OPT_##x
+#define USES_OPT(x)        ((OPT_IMPL_EXPAND(x) 1) == 1)// ---- end: rsl/_impl/macro/opt.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/os.hpp ----
+
+#define RSL_OS_UNKNOWN 0
+#define RSL_OS_WINDOWS 1
+#define RSL_OS_LINUX   2
+#define RSL_OS_MAC     3
+#define RSL_OS_FREEBSD 4
+#define RSL_OS_ANDROID 5
+#define RSL_OS_IOS     6
+
+#if defined(_WIN32) || defined(_WIN64)
+    #define RSL_OS RSL_OS_WINDOWS
+#elif defined(__APPLE__) && defined(__MACH__)
+    #include <TargetConditionals.h>
+    #if TARGET_OS_IPHONE
+        #define RSL_OS RSL_OS_IOS
+    #else
+        #define RSL_OS RSL_OS_MAC
+    #endif
+#elif defined(__ANDROID__)
+    #define RSL_OS RSL_OS_ANDROID
+#elif defined(__FreeBSD__)
+    #define RSL_OS RSL_OS_FREEBSD
+#elif defined(__linux__)
+    #define RSL_OS RSL_OS_LINUX
+#else
+    #define RSL_OS RSL_OS_UNKNOWN
+#endif// ---- end: rsl/_impl/macro/os.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/compat.hpp ----
+#include <meta>
+
+
+#if RSL_COMPILER == RSL_COMPILER_GCC
+#  define RSL_DEFINE_STATIC_ARRAY(...) [:::std::meta::reflect_constant_array(__VA_ARGS__):]
+#else
+#  define RSL_DEFINE_STATIC_ARRAY(...) (::std::define_static_array(__VA_ARGS__))
+#endif
+// ---- end: rsl/_impl/macro/compat.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/loop.hpp ----
+
+#define RSL_IMPL_PARENS ()
+
+#define RSL_IMPL_EXPAND(...)  RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND4(...) RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND3(...) RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND2(...) RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND1(...) __VA_ARGS__
+
+#define RSL_IMPL_FOR_EACH_DELIM(macro, delim, ...)                              \
+  __VA_OPT__(RSL_IMPL_EXPAND(RSL_IMPL_FOR_EACH_DELIM_HELPER(macro, delim, __VA_ARGS__)))
+#define RSL_IMPL_FOR_EACH_DELIM_HELPER(macro, delim, a1, ...)                   \
+  macro(a1)                                                            \
+  __VA_OPT__(delim() RSL_IMPL_FOR_EACH_DELIM_AGAIN RSL_IMPL_PARENS (macro, delim, __VA_ARGS__))
+#define RSL_IMPL_FOR_EACH_DELIM_AGAIN() RSL_IMPL_FOR_EACH_DELIM_HELPER
+
+#define RSL_IMPL_DELIM_NONE()
+#define RSL_IMPL_DELIM_COMMA() ,// ---- end: rsl/_impl/macro/loop.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/diagnostic.hpp ----
+
+
+#define RSL_STRINGIZE_IMPL(x) #x
+#define RSL_STRINGIZE(x)      RSL_STRINGIZE_IMPL(x)
+#if RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_PRAGMA(x) __pragma(x)
+#else
+#  define RSL_PRAGMA(x) _Pragma(RSL_STRINGIZE(x))
+#endif
+
+
+#if RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_DIAG_PUSH        RSL_PRAGMA(warning(push))
+#  define RSL_DIAG_POP         RSL_PRAGMA(warning(pop))
+#  define RSL_DIAG_DISABLE(id) RSL_PRAGMA(warning(disable : RSL_DIAGS_##id))
+#  define RSL_DIAG_ERROR(id)   RSL_PRAGMA(warning(error : RSL_DIAGS_##id))
+#elif RSL_COMPILER == RSL_COMPILER_GCC || RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_DIAG_PUSH       RSL_PRAGMA(RSL_COMPILER_ID diagnostic push)
+#  define RSL_DIAG_POP        RSL_PRAGMA(RSL_COMPILER_ID diagnostic pop)
+#  define RSL_DIAG_DISABLE(w) RSL_PRAGMA(RSL_COMPILER_ID diagnostic ignored RSL_DIAGS_##w)
+#  define RSL_DIAG_ERROR(w)   RSL_PRAGMA(RSL_COMPILER_ID diagnostic error RSL_DIAGS_##w)
+#else
+#  warning "Unsupported compiler"
+#endif
+
+#define RSL_IMPL_CONSUME(...)
+#define RSL_DIAG_push    RSL_DIAG_PUSH RSL_IMPL_CONSUME
+#define RSL_DIAG_pop     RSL_DIAG_POP RSL_IMPL_CONSUME
+#define RSL_DIAG_disable RSL_DIAG_DISABLE
+#define RSL_DIAG_error   RSL_DIAG_ERROR
+
+// Diagnostic map
+#if RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_DIAGS_literal_suffix 4455
+#  define RSL_DIAGS_narrowing      4838
+#elif RSL_COMPILER == RSL_COMPILER_GCC
+#  define RSL_DIAGS_literal_suffix "-Wliteral-suffix"
+#  define RSL_DIAGS_narrowing      "-Wnarrowing"
+#elif RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_DIAGS_literal_suffix "-Wuser-defined-literals"
+#  define RSL_DIAGS_narrowing      "-Wc++11-narrowing"
+#else
+#  warning "Unsupported compiler"
+#endif// ---- end: rsl/_impl/macro/diagnostic.hpp ----
+
+
+// compile environment checks
+
+/**
+ * @param compiler one of UNKNOWN, CLANG, GCC, MSVC
+ */
+#define $compiler_is(compiler) (RSL_COMPILER == RSL_COMPILER_##compiler)
+
+/**
+ * @param stdlib one of UNKNOWN, LIBCXX, GLIBCXX, MSVC
+ */
+#define $stdlib_is(stdlib) (RSL_STDLIB == RSL_STDLIB_##stdlib)
+
+/**
+ * @param os one of UNKNOWN, WINDOWS, LINUX, MAC, FREEBSD, ANDROID, IOS
+ */
+#define $os_is(os) (RSL_OS == RSL_OS_##os)
+
+/// Feature macro helper
+#define $uses_opt(x) USES_OPT(x)
+
+/**
+ * @param opt one of always, never
+ */
+#define $inline(opt) RSL_INLINE(opt)
+
+/// Enable this overload if a given expression evaluates to true. Clang only.
+#define $enable_if(...) RSL_ENABLE_IF(__VA_ARGS__)
+
+//! Workaround for expansion statements in GCC
+#define $define_static_array(...) RSL_DEFINE_STATIC_ARRAY(__VA_ARGS__)
+
+/** Applies `macro` to every element and inserts delimiters produced by `delim` between elements
+ * @param macro function-like macro applied to every element
+ * @param delim function-like macro producing the delimiter
+ * @param ... elements to loop over
+*/
+#define $for_each_delim(macro, delim, ...) RSL_IMPL_FOR_EACH_DELIM(macro, delim, __VA_ARGS__)
+
+/** Applies `macro` to every element and inserts commas between elements
+ * @param macro function-like macro applied to every element
+ * @param ... elements to loop over
+*/
+#define $for_each_list(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_COMMA, __VA_ARGS__)
+
+/** Applies `macro` to every element
+ * @param macro function-like macro applied to every element
+ * @param ... elements to loop over
+*/
+#define $for_each(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_NONE, __VA_ARGS__)
+
+/**
+ * @param op one of push, pop, disable, error
+ * @param ... optional arguments
+*/
+#define $diagnostics(op, ...) RSL_DIAG_##op (__VA_ARGS__)
+
+/// Introduces an explicit template region
+#define $template template for (auto _ : "")
+// ---- end: rsl/macro ----
+
+
+namespace rsl::meta {
+
+consteval bool is_specialization(std::meta::info type, std::meta::info templ) {
+  if (not is_type(type)) {
+    throw "not a type";
+  }
+  return has_template_arguments(type) &&
+         template_of(type) == (is_template(templ) ? templ : template_of(templ));
+}
+
+using std::meta::is_function;
+
+consteval bool is_member_function(std::meta::info r) {
+  return is_function(r) && is_class_member(r);
+}
+
+consteval bool is_static_member_function(std::meta::info r) {
+  return is_member_function(r) && is_static_member(r);
+}
+
+consteval bool is_nonstatic_member_function(std::meta::info r) {
+  return is_member_function(r) && !is_static_member(r);
+}
+
+namespace _compat {
+consteval std::vector<std::meta::info> annotations_of_with_type(std::meta::info r,
+                                                                std::meta::info t) {
+#if $compiler_is(CLANG)
+  return std::meta::annotations_of(r, t);
+#else
+  return std::meta::annotations_of_with_type(r, t);
+#endif
+}
+}  // namespace _compat
+
+template <typename T>
+consteval bool has_annotation(std::meta::info item) {
+  return !_compat::annotations_of_with_type(item, ^^T).empty();
+}
+
+consteval bool has_annotation(std::meta::info item, std::meta::info type) {
+  if (is_type(type)) {
+    return !_compat::annotations_of_with_type(item, type).empty();
+  } else if (is_template(type)) {
+    for (auto annotation : annotations_of(item)) {
+      if (has_template_arguments(type_of(annotation)) && template_of(type_of(annotation)) == type) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+template <typename T>
+consteval bool has_annotation(std::meta::info item, T const& value) {
+  if (!has_annotation<T>(item)) {
+    return false;
+  }
+  auto annotations = _compat::annotations_of_with_type(item, dealias(^^T));
+  auto value_r     = std::meta::reflect_constant(value);
+  return std::ranges::any_of(annotations, [&](auto annotation) { return annotation == value_r; });
+}
+
+consteval std::vector<std::meta::info> get_annotations(std::meta::info item, std::meta::info type) {
+  std::vector<std::meta::info> annotations;
+  for (auto annotation : annotations_of(item)) {
+    if ((is_type(type) && type == type_of(annotation)) ||
+        (is_template(type) && has_template_arguments(type_of(annotation)) &&
+         template_of(type_of(annotation)) == type)) {
+      annotations.push_back(annotation);
+    }
+  }
+  return annotations;
+}
+
+consteval std::meta::info get_annotation(std::meta::info item, std::meta::info type) {
+  return get_annotations(item, type)[0];
+}
+
+consteval bool has_parent(std::meta::info R) {
+  // HACK remove this once `std::meta::has_parent` is supported in libc++
+  return R != ^^::;
+}
+
+consteval std::meta::info get_member_by_name(std::meta::info r, std::string_view name) {
+  for (auto member : members_of(r, std::meta::access_context::unprivileged())) {
+    if (has_identifier(member) && identifier_of(member) == name) {
+      return member;
+    }
+  }
+  return {};
+}
+
+namespace _impl {
+template <std::meta::info... Args>
+struct injected {
+  struct type;
+  consteval { define_aggregate(^^type, {Args...}); };
+
+  static_assert(is_complete_type(^^type));
+};
+}  // namespace _impl
+
+consteval std::meta::info inject_aggregate(std::meta::reflection_range auto&& fields) {
+  auto wrapper = substitute(^^_impl::injected, fields | std::views::transform([](auto r) {
+                                                 return std::meta::reflect_constant(r);
+                                               }));
+  auto type    = get_member_by_name(wrapper, "type");
+  return is_type(type) ? type : throw "not a type";
+}
+}  // namespace rsl::meta// ---- end: rsl/meta ----
+
+
+// ---- begin: rsl/_impl/_config.h ----
+// this file contains defaults for feature macros used in rsl-util
+
+#define OPT_RSL_STD_COMPAT    OPT_DEFAULT_ON   // RSL_STD_COMPAT
+#define OPT_RSL_POISON_STD    OPT_DEFAULT_OFF  // RSL_POISON_STD
+#define OPT_RSL_ENABLE_REVIEW OPT_DEFAULT_OFF  // RSL_ENABLE_REVIEW
+#define OPT_RSL_GLOBAL_REPR   OPT_DEFAULT_ON   // RSL_GLOBAL_REPR// ---- end: rsl/_impl/_config.h ----
+
+
+
+
+// ---- begin: rsl/_impl/traits.hpp ----
+#include <type_traits>
+
+namespace rsl::_impl {
+template <typename T>
+concept is_hashable = 
+    std::is_default_constructible_v<std::hash<T>>
+    && std::is_copy_constructible_v<std::hash<T>>
+    && std::is_move_constructible_v<std::hash<T>>
+    && std::is_invocable_r_v<std::size_t, std::hash<T>, T const&>;
+
+template <typename T>
+concept is_void = std::is_void_v<T>;
+
+template <typename T>
+concept is_non_void = !is_void<T>;
+
+template <class T>
+inline const bool is_signed_integer_v = false;
+template <>
+inline const bool is_signed_integer_v<signed char> = true;
+template <>
+inline const bool is_signed_integer_v<signed short> = true;
+template <>
+inline const bool is_signed_integer_v<signed int> = true;
+template <>
+inline const bool is_signed_integer_v<signed long> = true;
+template <>
+inline const bool is_signed_integer_v<signed long long> = true;
+
+template <class T>
+inline const bool is_unsigned_integer_v = false;
+template <>
+inline const bool is_unsigned_integer_v<unsigned char> = true;
+template <>
+inline const bool is_unsigned_integer_v<unsigned short> = true;
+template <>
+inline const bool is_unsigned_integer_v<unsigned int> = true;
+template <>
+inline const bool is_unsigned_integer_v<unsigned long> = true;
+template <>
+inline const bool is_unsigned_integer_v<unsigned long long> = true;
+
+template <class T>
+concept signed_integer = is_signed_integer_v<T>;
+
+template <class T>
+concept unsigned_integer = is_unsigned_integer_v<T>;
+
+template <class T>
+concept integer_type = signed_integer<T> or unsigned_integer<T>;
+}  // namespace rsl::_impl// ---- end: rsl/_impl/traits.hpp ----
+
+
+namespace rsl {
+inline namespace annotations {
+struct FlagEnumTag {};
+constexpr inline FlagEnumTag flag_enum;
+
+}  // namespace annotations
+
+template <typename T>
+concept is_flag_enum = std::is_enum_v<T> && meta::has_annotation(^^T, ^^annotations::FlagEnumTag);
+
+template <typename T>
+concept is_fixed_enum = std::is_enum_v<T> and requires { T{0}; };
+
+consteval bool has_fixed_underlying_type(std::meta::info r) {
+  return is_type(r) and extract<bool>(substitute(^^is_fixed_enum, {r}));
+}
+
+template <is_flag_enum E>
+constexpr bool has_flag(E flags, E needle) {
+  using U = std::underlying_type_t<E>;
+  return (static_cast<U>(flags) & static_cast<U>(needle)) == static_cast<U>(needle);
+}
+
+template <is_flag_enum E>
+constexpr bool has_flag(E flags, std::underlying_type_t<E> needle) {
+  using U = std::underlying_type_t<E>;
+  return (static_cast<U>(flags) & needle) == needle;
+}
+
+namespace _impl {
+template <typename E>
+struct enum_range {
+  using underlying = std::underlying_type_t<E>;
+  struct Range {
+    underlying min;
+    underlying max;
+  };
+
+private:
+  static consteval Range get_enumerator_range() {
+    auto enumerators = enumerators_of(^^E);
+    if (enumerators.empty()) {
+      return {0, 0};
+    } else {
+      auto transformed      = enumerators | std::views::transform(std::meta::extract<E>);
+      auto [min_it, max_it] = std::ranges::minmax_element(transformed);
+      return {static_cast<underlying>(*min_it), static_cast<underlying>(*max_it)};
+    }
+  }
+
+  static constexpr int get_bit_width() {
+    using unsigned_underlying = std::make_unsigned_t<underlying>;
+
+    if (range.min < 0) {
+      auto min_val = static_cast<unsigned_underlying>(~static_cast<unsigned_underlying>(range.min));
+      auto max_val = static_cast<unsigned_underlying>(
+          range.max < 0 ? ~static_cast<unsigned_underlying>(range.max) : range.max);
+      return 1 + std::max(std::bit_width(min_val), std::bit_width(max_val));
+    }
+    return std::max(1, std::bit_width(unsigned_underlying(range.max)));
+  }
+
+public:
+  static constexpr auto range     = get_enumerator_range();
+  static constexpr auto bit_width = get_bit_width();
+  static constexpr auto min_value = E(range.min < 0 ? -(1ULL << (bit_width - 1U)) : 0);
+  static constexpr auto max_value = E(range.min < 0 ? -(static_cast<underlying>(min_value) + 1)
+                                                    : std::numeric_limits<uint64_t>::max() >>
+                                                          (bit_width >= 64 ? 0U : 64 - bit_width));
+};
+}  // namespace _impl
+
+template <typename T>
+struct numeric_limits;
+
+template <typename T>
+  requires std::numeric_limits<T>::is_specialized
+struct numeric_limits<T> : std::numeric_limits<T> {};
+
+template <typename E>
+  requires std::is_enum_v<E> && (not is_fixed_enum<E> or is_flag_enum<E>)
+struct numeric_limits<E> {
+  using type                                 = E;
+  static constexpr const bool is_specialized = false;
+  [[nodiscard]] static constexpr type min() noexcept { return _impl::enum_range<E>::min_value; }
+  [[nodiscard]] static constexpr type max() noexcept { return _impl::enum_range<E>::max_value; }
+  [[nodiscard]] static constexpr type lowest() noexcept { return min(); }
+
+  static constexpr const int digits       = _impl::enum_range<E>::bit_width;
+  static constexpr const int digits10     = digits * 3 / 10;
+  static constexpr const int max_digits10 = 0;
+  static constexpr const bool is_signed   = std::is_signed_v<std::underlying_type_t<E>>;
+  static constexpr const bool is_integer  = true;
+  static constexpr const bool is_exact    = true;
+  static constexpr const int radix        = 2;
+  [[nodiscard]] static constexpr type epsilon() noexcept { return type(); }
+  [[nodiscard]] static constexpr type round_error() noexcept { return type(); }
+
+  static constexpr const int min_exponent   = 0;
+  static constexpr const int min_exponent10 = 0;
+  static constexpr const int max_exponent   = 0;
+  static constexpr const int max_exponent10 = 0;
+
+  static constexpr const bool has_infinity                                 = false;
+  static constexpr const bool has_quiet_NaN                                = false;
+  static constexpr const bool has_signaling_NaN                            = false;
+  [[deprecated]] static constexpr const std::float_denorm_style has_denorm = std::denorm_absent;
+  [[deprecated]] static constexpr const bool has_denorm_loss               = false;
+  [[nodiscard]] static constexpr type infinity() noexcept { return type(); }
+  [[nodiscard]] static constexpr type quiet_NaN() noexcept { return type(); }
+  [[nodiscard]] static constexpr type signaling_NaN() noexcept { return type(); }
+  [[nodiscard]] static constexpr type denorm_min() noexcept { return type(); }
+
+  static constexpr const bool is_iec559  = false;
+  static constexpr const bool is_bounded = true;
+  static constexpr const bool is_modulo  = false;
+
+  static constexpr const bool traps = std::numeric_limits<std::underlying_type_t<E>>::traps;
+  static constexpr const bool tinyness_before               = false;
+  static constexpr const std::float_round_style round_style = std::round_toward_zero;
+};
+
+template <is_fixed_enum E>
+  requires is_fixed_enum<E> and (not is_flag_enum<E>)
+struct numeric_limits<E> : std::numeric_limits<std::underlying_type_t<E>> {};
+
+template <typename T, typename V>
+  requires std::is_enum_v<T> and
+           (std::same_as<V, T> or std::convertible_to<V, std::underlying_type_t<T>>)
+constexpr bool in_enum(V value) {
+  constexpr static auto named_enumerators =
+      define_static_array(enumerators_of(^^T) | std::views::transform([](std::meta::info r) {
+                            return extract<T>(constant_of(r));
+                          }));
+  return std::ranges::contains(named_enumerators, value);
+}
+
+template <_impl::integer_type T, _impl::integer_type U>
+constexpr bool in_range(U value) noexcept {
+  return std::cmp_less_equal(value, numeric_limits<T>::max()) &&
+         std::cmp_greater_equal(value, numeric_limits<T>::min());
+}
+
+// essentially std::in_range but with support for enums
+template <typename T, typename U>
+  requires std::is_enum_v<T> and
+           (std::same_as<U, T> or std::convertible_to<U, std::underlying_type_t<T>>)
+constexpr bool in_range(U value) noexcept {
+  using underlying = std::underlying_type_t<T>;
+  return std::cmp_less_equal(static_cast<underlying>(value),
+                             static_cast<underlying>(numeric_limits<T>::max())) &&
+         std::cmp_greater_equal(static_cast<underlying>(value),
+                                static_cast<underlying>(numeric_limits<T>::min()));
+}
+}  // namespace rsl
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator~(E v) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(~static_cast<U>(v));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr bool operator==(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) == static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr bool operator==(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) == static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr bool operator!=(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) != static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr bool operator!=(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) != static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator|(E lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator&(E lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator^(E lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) ^ static_cast<U>(rhs));
+}
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator|(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator&(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator^(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) ^ static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator|(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator&(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator^(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) ^ static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator|=(E& lhs, E rhs) noexcept {
+  return lhs = lhs | rhs;
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator&=(E& lhs, E rhs) noexcept {
+  return lhs = lhs & rhs;
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator^=(E& lhs, E rhs) noexcept {
+  return lhs = lhs ^ rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator|=(E& lhs, T rhs) noexcept {
+  return lhs = lhs | rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator&=(E& lhs, T rhs) noexcept {
+  return lhs = lhs & rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator^=(E& lhs, T rhs) noexcept {
+  return lhs = lhs ^ rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr T& operator|=(T& lhs, E rhs) noexcept {
+  return lhs = static_cast<std::underlying_type_t<E>>(lhs | rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr T& operator&=(T& lhs, E rhs) noexcept {
+  return lhs = static_cast<std::underlying_type_t<E>>(lhs & rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr T& operator^=(T& lhs, E rhs) noexcept {
+  return lhs = static_cast<std::underlying_type_t<E>>(lhs ^ rhs);
+}

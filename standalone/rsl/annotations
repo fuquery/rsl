@@ -1,0 +1,2323 @@
+
+// ---- begin: rsl/meta ----
+#include <algorithm>
+#include <meta>
+#include <ranges>
+
+
+// ---- begin: rsl/macro ----
+
+// ---- begin: rsl/_impl/macro/attributes.hpp ----
+
+// ---- begin: compiler.hpp ----
+
+#define RSL_COMPILER_UNKNOWN 0
+#define RSL_COMPILER_CLANG   1
+#define RSL_COMPILER_GCC     2
+#define RSL_COMPILER_MSVC    3
+
+#define RSL_VERSION_ENCODE(major, minor, patch) ((major) * 1000000 + (minor) * 1000 + (patch))
+
+#if defined(__clang__)
+#  define RSL_COMPILER    RSL_COMPILER_CLANG
+#  define RSL_COMPILER_ID clang
+#  define RSL_COMPILER_VERSION \
+    RSL_VERSION_ENCODE(__clang_major__, __clang_minor__, __clang_patchlevel__)
+#elif defined(__GNUC__)
+#  define RSL_COMPILER         RSL_COMPILER_GCC
+#  define RSL_COMPILER_ID      GCC
+#  define RSL_COMPILER_VERSION RSL_VERSION_ENCODE(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__)
+#elif defined(_MSC_VER)
+#  define RSL_COMPILER    RSL_COMPILER_MSVC
+#  define RSL_COMPILER_ID MSVC
+#  if defined(_MSC_FULL_VER)
+#    define RSL_COMPILER_VERSION _MSC_FULL_VER
+#  else
+#    define RSL_COMPILER_VERSION _MSC_VER
+#  endif
+
+#else
+#  define RSL_COMPILER         RSL_COMPILER_UNKNOWN
+#  define RSL_COMPILER_ID      UNKNOWN
+#  define RSL_COMPILER_VERSION 0
+#endif
+
+#define RSL_STDLIB_UNKNOWN 0
+#define RSL_STDLIB_LIBCXX  1
+#define RSL_STDLIB_GLIBCXX 2
+#define RSL_STDLIB_MSVC    3
+
+#if defined(_MSC_VER) && defined(_MSVC_STL_VERSION)
+#  define RSL_STDLIB         RSL_STDLIB_MSVC
+#  define RSL_STDLIB_VERSION _MSVC_STL_VERSION
+#elif defined(__GLIBCXX__)
+#  define RSL_STDLIB         RSL_STDLIB_GLIBCXX
+#  define RSL_STDLIB_VERSION __GLIBCXX__
+#elif defined(_LIBCPP_VERSION) || defined(__llvm_libc__)
+#  define RSL_STDLIB         RSL_STDLIB_LIBCXX
+#  define RSL_STDLIB_VERSION _LIBCPP_VERSION
+#else
+#  define RSL_STDLIB         RSL_STDLIB_UNKNOWN
+#  define RSL_STDLIB_VERSION 0
+#endif
+// ---- end: compiler.hpp ----
+
+
+#if RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_ALWAYS_INLINE  [[clang::always_inline]] inline
+#  define RSL_NO_INLINE      [[clang::noinline]]
+
+#elif RSL_COMPILER == RSL_COMPILER_GCC
+#  define RSL_ALWAYS_INLINE __attribute__((always_inline)) inline
+#  define RSL_NO_INLINE     __attribute__((noinline))
+
+#elif RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_ALWAYS_INLINE __forceinline
+#  define RSL_NO_INLINE     __declspec(noinline)
+
+#endif
+
+#define RSL_INLINE_opt_never  RSL_NO_INLINE
+#define RSL_INLINE_opt_always RSL_ALWAYS_INLINE
+#define RSL_INLINE(_opt)      RSL_INLINE_opt_##_opt
+
+// Clang specific extensions
+#if RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_ENABLE_IF(...) __attribute__((enable_if(__VA_ARGS__)))
+#else
+#  define RSL_ENABLE_IF(...)
+#endif// ---- end: rsl/_impl/macro/attributes.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/opt.hpp ----
+
+#define OPT_      +
+#define OPT_true  +
+#define OPT_1     +
+#define OPT_on    +
+#define OPT_ON    +
+#define OPT_false -
+#define OPT_0     -
+#define OPT_off   -
+#define OPT_OFF   -
+
+#define OPT_DEFAULT_ON  +
+#define OPT_DEFAULT_OFF -
+
+#define OPT_IMPL_EXPAND(x) OPT_##x
+#define USES_OPT(x)        ((OPT_IMPL_EXPAND(x) 1) == 1)// ---- end: rsl/_impl/macro/opt.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/os.hpp ----
+
+#define RSL_OS_UNKNOWN 0
+#define RSL_OS_WINDOWS 1
+#define RSL_OS_LINUX   2
+#define RSL_OS_MAC     3
+#define RSL_OS_FREEBSD 4
+#define RSL_OS_ANDROID 5
+#define RSL_OS_IOS     6
+
+#if defined(_WIN32) || defined(_WIN64)
+    #define RSL_OS RSL_OS_WINDOWS
+#elif defined(__APPLE__) && defined(__MACH__)
+    #include <TargetConditionals.h>
+    #if TARGET_OS_IPHONE
+        #define RSL_OS RSL_OS_IOS
+    #else
+        #define RSL_OS RSL_OS_MAC
+    #endif
+#elif defined(__ANDROID__)
+    #define RSL_OS RSL_OS_ANDROID
+#elif defined(__FreeBSD__)
+    #define RSL_OS RSL_OS_FREEBSD
+#elif defined(__linux__)
+    #define RSL_OS RSL_OS_LINUX
+#else
+    #define RSL_OS RSL_OS_UNKNOWN
+#endif// ---- end: rsl/_impl/macro/os.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/compat.hpp ----
+#include <meta>
+
+
+#if RSL_COMPILER == RSL_COMPILER_GCC
+#  define RSL_DEFINE_STATIC_ARRAY(...) [:::std::meta::reflect_constant_array(__VA_ARGS__):]
+#else
+#  define RSL_DEFINE_STATIC_ARRAY(...) (::std::define_static_array(__VA_ARGS__))
+#endif
+// ---- end: rsl/_impl/macro/compat.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/loop.hpp ----
+
+#define RSL_IMPL_PARENS ()
+
+#define RSL_IMPL_EXPAND(...)  RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(RSL_IMPL_EXPAND4(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND4(...) RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(RSL_IMPL_EXPAND3(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND3(...) RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(RSL_IMPL_EXPAND2(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND2(...) RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(RSL_IMPL_EXPAND1(__VA_ARGS__))))
+#define RSL_IMPL_EXPAND1(...) __VA_ARGS__
+
+#define RSL_IMPL_FOR_EACH_DELIM(macro, delim, ...)                              \
+  __VA_OPT__(RSL_IMPL_EXPAND(RSL_IMPL_FOR_EACH_DELIM_HELPER(macro, delim, __VA_ARGS__)))
+#define RSL_IMPL_FOR_EACH_DELIM_HELPER(macro, delim, a1, ...)                   \
+  macro(a1)                                                            \
+  __VA_OPT__(delim() RSL_IMPL_FOR_EACH_DELIM_AGAIN RSL_IMPL_PARENS (macro, delim, __VA_ARGS__))
+#define RSL_IMPL_FOR_EACH_DELIM_AGAIN() RSL_IMPL_FOR_EACH_DELIM_HELPER
+
+#define RSL_IMPL_DELIM_NONE()
+#define RSL_IMPL_DELIM_COMMA() ,// ---- end: rsl/_impl/macro/loop.hpp ----
+
+
+// ---- begin: rsl/_impl/macro/diagnostic.hpp ----
+
+
+#define RSL_STRINGIZE_IMPL(x) #x
+#define RSL_STRINGIZE(x)      RSL_STRINGIZE_IMPL(x)
+#if RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_PRAGMA(x) __pragma(x)
+#else
+#  define RSL_PRAGMA(x) _Pragma(RSL_STRINGIZE(x))
+#endif
+
+
+#if RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_DIAG_PUSH        RSL_PRAGMA(warning(push))
+#  define RSL_DIAG_POP         RSL_PRAGMA(warning(pop))
+#  define RSL_DIAG_DISABLE(id) RSL_PRAGMA(warning(disable : RSL_DIAGS_##id))
+#  define RSL_DIAG_ERROR(id)   RSL_PRAGMA(warning(error : RSL_DIAGS_##id))
+#elif RSL_COMPILER == RSL_COMPILER_GCC || RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_DIAG_PUSH       RSL_PRAGMA(RSL_COMPILER_ID diagnostic push)
+#  define RSL_DIAG_POP        RSL_PRAGMA(RSL_COMPILER_ID diagnostic pop)
+#  define RSL_DIAG_DISABLE(w) RSL_PRAGMA(RSL_COMPILER_ID diagnostic ignored RSL_DIAGS_##w)
+#  define RSL_DIAG_ERROR(w)   RSL_PRAGMA(RSL_COMPILER_ID diagnostic error RSL_DIAGS_##w)
+#else
+#  warning "Unsupported compiler"
+#endif
+
+#define RSL_IMPL_CONSUME(...)
+#define RSL_DIAG_push    RSL_DIAG_PUSH RSL_IMPL_CONSUME
+#define RSL_DIAG_pop     RSL_DIAG_POP RSL_IMPL_CONSUME
+#define RSL_DIAG_disable RSL_DIAG_DISABLE
+#define RSL_DIAG_error   RSL_DIAG_ERROR
+
+// Diagnostic map
+#if RSL_COMPILER == RSL_COMPILER_MSVC
+#  define RSL_DIAGS_literal_suffix 4455
+#  define RSL_DIAGS_narrowing      4838
+#elif RSL_COMPILER == RSL_COMPILER_GCC
+#  define RSL_DIAGS_literal_suffix "-Wliteral-suffix"
+#  define RSL_DIAGS_narrowing      "-Wnarrowing"
+#elif RSL_COMPILER == RSL_COMPILER_CLANG
+#  define RSL_DIAGS_literal_suffix "-Wuser-defined-literals"
+#  define RSL_DIAGS_narrowing      "-Wc++11-narrowing"
+#else
+#  warning "Unsupported compiler"
+#endif// ---- end: rsl/_impl/macro/diagnostic.hpp ----
+
+
+// compile environment checks
+
+/**
+ * @param compiler one of UNKNOWN, CLANG, GCC, MSVC
+ */
+#define $compiler_is(compiler) (RSL_COMPILER == RSL_COMPILER_##compiler)
+
+/**
+ * @param stdlib one of UNKNOWN, LIBCXX, GLIBCXX, MSVC
+ */
+#define $stdlib_is(stdlib) (RSL_STDLIB == RSL_STDLIB_##stdlib)
+
+/**
+ * @param os one of UNKNOWN, WINDOWS, LINUX, MAC, FREEBSD, ANDROID, IOS
+ */
+#define $os_is(os) (RSL_OS == RSL_OS_##os)
+
+/// Feature macro helper
+#define $uses_opt(x) USES_OPT(x)
+
+/**
+ * @param opt one of always, never
+ */
+#define $inline(opt) RSL_INLINE(opt)
+
+/// Enable this overload if a given expression evaluates to true. Clang only.
+#define $enable_if(...) RSL_ENABLE_IF(__VA_ARGS__)
+
+//! Workaround for expansion statements in GCC
+#define $define_static_array(...) RSL_DEFINE_STATIC_ARRAY(__VA_ARGS__)
+
+/** Applies `macro` to every element and inserts delimiters produced by `delim` between elements
+ * @param macro function-like macro applied to every element
+ * @param delim function-like macro producing the delimiter
+ * @param ... elements to loop over
+*/
+#define $for_each_delim(macro, delim, ...) RSL_IMPL_FOR_EACH_DELIM(macro, delim, __VA_ARGS__)
+
+/** Applies `macro` to every element and inserts commas between elements
+ * @param macro function-like macro applied to every element
+ * @param ... elements to loop over
+*/
+#define $for_each_list(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_COMMA, __VA_ARGS__)
+
+/** Applies `macro` to every element
+ * @param macro function-like macro applied to every element
+ * @param ... elements to loop over
+*/
+#define $for_each(macro, ...) RSL_IMPL_FOR_EACH_DELIM(macro, RSL_IMPL_DELIM_NONE, __VA_ARGS__)
+
+/**
+ * @param op one of push, pop, disable, error
+ * @param ... optional arguments
+*/
+#define $diagnostics(op, ...) RSL_DIAG_##op (__VA_ARGS__)
+
+/// Introduces an explicit template region
+#define $template template for (auto _ : "")
+// ---- end: rsl/macro ----
+
+
+namespace rsl::meta {
+
+consteval bool is_specialization(std::meta::info type, std::meta::info templ) {
+  if (not is_type(type)) {
+    throw "not a type";
+  }
+  return has_template_arguments(type) &&
+         template_of(type) == (is_template(templ) ? templ : template_of(templ));
+}
+
+using std::meta::is_function;
+
+consteval bool is_member_function(std::meta::info r) {
+  return is_function(r) && is_class_member(r);
+}
+
+consteval bool is_static_member_function(std::meta::info r) {
+  return is_member_function(r) && is_static_member(r);
+}
+
+consteval bool is_nonstatic_member_function(std::meta::info r) {
+  return is_member_function(r) && !is_static_member(r);
+}
+
+namespace _compat {
+consteval std::vector<std::meta::info> annotations_of_with_type(std::meta::info r,
+                                                                std::meta::info t) {
+#if $compiler_is(CLANG)
+  return std::meta::annotations_of(r, t);
+#else
+  return std::meta::annotations_of_with_type(r, t);
+#endif
+}
+}  // namespace _compat
+
+template <typename T>
+consteval bool has_annotation(std::meta::info item) {
+  return !_compat::annotations_of_with_type(item, ^^T).empty();
+}
+
+consteval bool has_annotation(std::meta::info item, std::meta::info type) {
+  if (is_type(type)) {
+    return !_compat::annotations_of_with_type(item, type).empty();
+  } else if (is_template(type)) {
+    for (auto annotation : annotations_of(item)) {
+      if (has_template_arguments(type_of(annotation)) && template_of(type_of(annotation)) == type) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+template <typename T>
+consteval bool has_annotation(std::meta::info item, T const& value) {
+  if (!has_annotation<T>(item)) {
+    return false;
+  }
+  auto annotations = _compat::annotations_of_with_type(item, dealias(^^T));
+  auto value_r     = std::meta::reflect_constant(value);
+  return std::ranges::any_of(annotations, [&](auto annotation) { return annotation == value_r; });
+}
+
+consteval std::vector<std::meta::info> get_annotations(std::meta::info item, std::meta::info type) {
+  std::vector<std::meta::info> annotations;
+  for (auto annotation : annotations_of(item)) {
+    if ((is_type(type) && type == type_of(annotation)) ||
+        (is_template(type) && has_template_arguments(type_of(annotation)) &&
+         template_of(type_of(annotation)) == type)) {
+      annotations.push_back(annotation);
+    }
+  }
+  return annotations;
+}
+
+consteval std::meta::info get_annotation(std::meta::info item, std::meta::info type) {
+  return get_annotations(item, type)[0];
+}
+
+consteval bool has_parent(std::meta::info R) {
+  // HACK remove this once `std::meta::has_parent` is supported in libc++
+  return R != ^^::;
+}
+
+consteval std::meta::info get_member_by_name(std::meta::info r, std::string_view name) {
+  for (auto member : members_of(r, std::meta::access_context::unprivileged())) {
+    if (has_identifier(member) && identifier_of(member) == name) {
+      return member;
+    }
+  }
+  return {};
+}
+
+namespace _impl {
+template <std::meta::info... Args>
+struct injected {
+  struct type;
+  consteval { define_aggregate(^^type, {Args...}); };
+
+  static_assert(is_complete_type(^^type));
+};
+}  // namespace _impl
+
+consteval std::meta::info inject_aggregate(std::meta::reflection_range auto&& fields) {
+  auto wrapper = substitute(^^_impl::injected, fields | std::views::transform([](auto r) {
+                                                 return std::meta::reflect_constant(r);
+                                               }));
+  auto type    = get_member_by_name(wrapper, "type");
+  return is_type(type) ? type : throw "not a type";
+}
+}  // namespace rsl::meta// ---- end: rsl/meta ----
+
+
+// ---- begin: rsl/serialize ----
+#include <functional>
+#include <ranges>
+
+
+// ---- begin: rsl/enum ----
+#include <meta>
+#include <ranges>
+#include <type_traits>
+#include <utility>
+
+// ---- begin: rsl/_impl/_config.h ----
+// this file contains defaults for feature macros used in rsl-util
+
+#define OPT_RSL_STD_COMPAT    OPT_DEFAULT_ON   // RSL_STD_COMPAT
+#define OPT_RSL_POISON_STD    OPT_DEFAULT_OFF  // RSL_POISON_STD
+#define OPT_RSL_ENABLE_REVIEW OPT_DEFAULT_OFF  // RSL_ENABLE_REVIEW
+#define OPT_RSL_GLOBAL_REPR   OPT_DEFAULT_ON   // RSL_GLOBAL_REPR// ---- end: rsl/_impl/_config.h ----
+
+
+
+
+// ---- begin: rsl/_impl/traits.hpp ----
+#include <type_traits>
+
+namespace rsl::_impl {
+template <typename T>
+concept is_hashable = 
+    std::is_default_constructible_v<std::hash<T>>
+    && std::is_copy_constructible_v<std::hash<T>>
+    && std::is_move_constructible_v<std::hash<T>>
+    && std::is_invocable_r_v<std::size_t, std::hash<T>, T const&>;
+
+template <typename T>
+concept is_void = std::is_void_v<T>;
+
+template <typename T>
+concept is_non_void = !is_void<T>;
+
+template <class T>
+inline const bool is_signed_integer_v = false;
+template <>
+inline const bool is_signed_integer_v<signed char> = true;
+template <>
+inline const bool is_signed_integer_v<signed short> = true;
+template <>
+inline const bool is_signed_integer_v<signed int> = true;
+template <>
+inline const bool is_signed_integer_v<signed long> = true;
+template <>
+inline const bool is_signed_integer_v<signed long long> = true;
+
+template <class T>
+inline const bool is_unsigned_integer_v = false;
+template <>
+inline const bool is_unsigned_integer_v<unsigned char> = true;
+template <>
+inline const bool is_unsigned_integer_v<unsigned short> = true;
+template <>
+inline const bool is_unsigned_integer_v<unsigned int> = true;
+template <>
+inline const bool is_unsigned_integer_v<unsigned long> = true;
+template <>
+inline const bool is_unsigned_integer_v<unsigned long long> = true;
+
+template <class T>
+concept signed_integer = is_signed_integer_v<T>;
+
+template <class T>
+concept unsigned_integer = is_unsigned_integer_v<T>;
+
+template <class T>
+concept integer_type = signed_integer<T> or unsigned_integer<T>;
+}  // namespace rsl::_impl// ---- end: rsl/_impl/traits.hpp ----
+
+
+namespace rsl {
+inline namespace annotations {
+struct FlagEnumTag {};
+constexpr inline FlagEnumTag flag_enum;
+
+}  // namespace annotations
+
+template <typename T>
+concept is_flag_enum = std::is_enum_v<T> && meta::has_annotation(^^T, ^^annotations::FlagEnumTag);
+
+template <typename T>
+concept is_fixed_enum = std::is_enum_v<T> and requires { T{0}; };
+
+consteval bool has_fixed_underlying_type(std::meta::info r) {
+  return is_type(r) and extract<bool>(substitute(^^is_fixed_enum, {r}));
+}
+
+template <is_flag_enum E>
+constexpr bool has_flag(E flags, E needle) {
+  using U = std::underlying_type_t<E>;
+  return (static_cast<U>(flags) & static_cast<U>(needle)) == static_cast<U>(needle);
+}
+
+template <is_flag_enum E>
+constexpr bool has_flag(E flags, std::underlying_type_t<E> needle) {
+  using U = std::underlying_type_t<E>;
+  return (static_cast<U>(flags) & needle) == needle;
+}
+
+namespace _impl {
+template <typename E>
+struct enum_range {
+  using underlying = std::underlying_type_t<E>;
+  struct Range {
+    underlying min;
+    underlying max;
+  };
+
+private:
+  static consteval Range get_enumerator_range() {
+    auto enumerators = enumerators_of(^^E);
+    if (enumerators.empty()) {
+      return {0, 0};
+    } else {
+      auto transformed      = enumerators | std::views::transform(std::meta::extract<E>);
+      auto [min_it, max_it] = std::ranges::minmax_element(transformed);
+      return {static_cast<underlying>(*min_it), static_cast<underlying>(*max_it)};
+    }
+  }
+
+  static constexpr int get_bit_width() {
+    using unsigned_underlying = std::make_unsigned_t<underlying>;
+
+    if (range.min < 0) {
+      auto min_val = static_cast<unsigned_underlying>(~static_cast<unsigned_underlying>(range.min));
+      auto max_val = static_cast<unsigned_underlying>(
+          range.max < 0 ? ~static_cast<unsigned_underlying>(range.max) : range.max);
+      return 1 + std::max(std::bit_width(min_val), std::bit_width(max_val));
+    }
+    return std::max(1, std::bit_width(unsigned_underlying(range.max)));
+  }
+
+public:
+  static constexpr auto range     = get_enumerator_range();
+  static constexpr auto bit_width = get_bit_width();
+  static constexpr auto min_value = E(range.min < 0 ? -(1ULL << (bit_width - 1U)) : 0);
+  static constexpr auto max_value = E(range.min < 0 ? -(static_cast<underlying>(min_value) + 1)
+                                                    : std::numeric_limits<uint64_t>::max() >>
+                                                          (bit_width >= 64 ? 0U : 64 - bit_width));
+};
+}  // namespace _impl
+
+template <typename T>
+struct numeric_limits;
+
+template <typename T>
+  requires std::numeric_limits<T>::is_specialized
+struct numeric_limits<T> : std::numeric_limits<T> {};
+
+template <typename E>
+  requires std::is_enum_v<E> && (not is_fixed_enum<E> or is_flag_enum<E>)
+struct numeric_limits<E> {
+  using type                                 = E;
+  static constexpr const bool is_specialized = false;
+  [[nodiscard]] static constexpr type min() noexcept { return _impl::enum_range<E>::min_value; }
+  [[nodiscard]] static constexpr type max() noexcept { return _impl::enum_range<E>::max_value; }
+  [[nodiscard]] static constexpr type lowest() noexcept { return min(); }
+
+  static constexpr const int digits       = _impl::enum_range<E>::bit_width;
+  static constexpr const int digits10     = digits * 3 / 10;
+  static constexpr const int max_digits10 = 0;
+  static constexpr const bool is_signed   = std::is_signed_v<std::underlying_type_t<E>>;
+  static constexpr const bool is_integer  = true;
+  static constexpr const bool is_exact    = true;
+  static constexpr const int radix        = 2;
+  [[nodiscard]] static constexpr type epsilon() noexcept { return type(); }
+  [[nodiscard]] static constexpr type round_error() noexcept { return type(); }
+
+  static constexpr const int min_exponent   = 0;
+  static constexpr const int min_exponent10 = 0;
+  static constexpr const int max_exponent   = 0;
+  static constexpr const int max_exponent10 = 0;
+
+  static constexpr const bool has_infinity                                 = false;
+  static constexpr const bool has_quiet_NaN                                = false;
+  static constexpr const bool has_signaling_NaN                            = false;
+  [[deprecated]] static constexpr const std::float_denorm_style has_denorm = std::denorm_absent;
+  [[deprecated]] static constexpr const bool has_denorm_loss               = false;
+  [[nodiscard]] static constexpr type infinity() noexcept { return type(); }
+  [[nodiscard]] static constexpr type quiet_NaN() noexcept { return type(); }
+  [[nodiscard]] static constexpr type signaling_NaN() noexcept { return type(); }
+  [[nodiscard]] static constexpr type denorm_min() noexcept { return type(); }
+
+  static constexpr const bool is_iec559  = false;
+  static constexpr const bool is_bounded = true;
+  static constexpr const bool is_modulo  = false;
+
+  static constexpr const bool traps = std::numeric_limits<std::underlying_type_t<E>>::traps;
+  static constexpr const bool tinyness_before               = false;
+  static constexpr const std::float_round_style round_style = std::round_toward_zero;
+};
+
+template <is_fixed_enum E>
+  requires is_fixed_enum<E> and (not is_flag_enum<E>)
+struct numeric_limits<E> : std::numeric_limits<std::underlying_type_t<E>> {};
+
+template <typename T, typename V>
+  requires std::is_enum_v<T> and
+           (std::same_as<V, T> or std::convertible_to<V, std::underlying_type_t<T>>)
+constexpr bool in_enum(V value) {
+  constexpr static auto named_enumerators =
+      define_static_array(enumerators_of(^^T) | std::views::transform([](std::meta::info r) {
+                            return extract<T>(constant_of(r));
+                          }));
+  return std::ranges::contains(named_enumerators, value);
+}
+
+template <_impl::integer_type T, _impl::integer_type U>
+constexpr bool in_range(U value) noexcept {
+  return std::cmp_less_equal(value, numeric_limits<T>::max()) &&
+         std::cmp_greater_equal(value, numeric_limits<T>::min());
+}
+
+// essentially std::in_range but with support for enums
+template <typename T, typename U>
+  requires std::is_enum_v<T> and
+           (std::same_as<U, T> or std::convertible_to<U, std::underlying_type_t<T>>)
+constexpr bool in_range(U value) noexcept {
+  using underlying = std::underlying_type_t<T>;
+  return std::cmp_less_equal(static_cast<underlying>(value),
+                             static_cast<underlying>(numeric_limits<T>::max())) &&
+         std::cmp_greater_equal(static_cast<underlying>(value),
+                                static_cast<underlying>(numeric_limits<T>::min()));
+}
+}  // namespace rsl
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator~(E v) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(~static_cast<U>(v));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr bool operator==(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) == static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr bool operator==(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) == static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr bool operator!=(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) != static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr bool operator!=(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<U>(lhs) != static_cast<U>(rhs);
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator|(E lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator&(E lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator^(E lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) ^ static_cast<U>(rhs));
+}
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator|(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator&(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator^(E lhs, T rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) ^ static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator|(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) | static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator&(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) & static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E operator^(T lhs, E rhs) noexcept {
+  using U = std::underlying_type_t<E>;
+  return static_cast<E>(static_cast<U>(lhs) ^ static_cast<U>(rhs));
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator|=(E& lhs, E rhs) noexcept {
+  return lhs = lhs | rhs;
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator&=(E& lhs, E rhs) noexcept {
+  return lhs = lhs & rhs;
+}
+
+template <rsl::is_flag_enum E>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator^=(E& lhs, E rhs) noexcept {
+  return lhs = lhs ^ rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator|=(E& lhs, T rhs) noexcept {
+  return lhs = lhs | rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator&=(E& lhs, T rhs) noexcept {
+  return lhs = lhs & rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr E& operator^=(E& lhs, T rhs) noexcept {
+  return lhs = lhs ^ rhs;
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr T& operator|=(T& lhs, E rhs) noexcept {
+  return lhs = static_cast<std::underlying_type_t<E>>(lhs | rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr T& operator&=(T& lhs, E rhs) noexcept {
+  return lhs = static_cast<std::underlying_type_t<E>>(lhs & rhs);
+}
+
+template <rsl::is_flag_enum E, std::convertible_to<std::underlying_type_t<E>> T>
+  requires std::is_scoped_enum_v<E>
+constexpr T& operator^=(T& lhs, E rhs) noexcept {
+  return lhs = static_cast<std::underlying_type_t<E>>(lhs ^ rhs);
+}// ---- end: rsl/enum ----
+
+
+// ---- begin: rsl/_impl/serialize/operators.hpp ----
+#include <meta>
+#include <string>
+
+// ---- begin: rsl/_impl/hash.hpp ----
+#include <cstdint>
+#include <string_view>
+
+namespace rsl::_impl {
+
+class FNV1a {
+  std::uint64_t state = 0xcbf29ce484222325ULL;
+
+public:
+  constexpr FNV1a& operator()(char const* data, std::size_t size) {
+    for (std::size_t idx = 0; idx < size; ++idx) {
+      state ^= static_cast<std::uint64_t>(data[idx]);
+      state *= 0x100000001b3ULL;
+    }
+    return *this;
+  }
+
+  constexpr FNV1a& operator()(std::string_view str) { return (*this)(str.data(), str.size()); }
+
+  [[nodiscard]] constexpr std::size_t finalize() const { return state; }
+};
+
+using hash_t = std::uint64_t;
+constexpr hash_t fnv1a(char const* str, std::size_t size) {
+  return FNV1a()(str, size).finalize();
+}
+
+constexpr hash_t fnv1a(std::string_view str) {
+  return FNV1a()(str).finalize();
+}
+
+}  // namespace rsl::_impl// ---- end: rsl/_impl/hash.hpp ----
+
+
+namespace rsl::_serialize_impl {
+constexpr std::string op_to_string(std::meta::operators op) {
+  switch (op) {
+    using enum std::meta::operators;
+    case op_new: return "new";
+    case op_delete: return "delete";
+    case op_array_new: return "new[]";
+    case op_array_delete: return "delete[]";
+    case op_co_await: return "co_await";
+    case op_parentheses: return "()";
+    case op_square_brackets: return "[]";
+    case op_arrow: return "->";
+    case op_arrow_star: return "->*";
+    case op_tilde: return "~";
+    case op_exclamation: return "!";
+    case op_plus: return "+";
+    case op_minus: return "-";
+    case op_star: return "*";
+    case op_slash: return "/";
+    case op_percent: return "%";
+    case op_caret: return "^";
+    case op_ampersand: return "&";
+    case op_pipe: return "|";
+    case op_equals: return "=";
+    case op_plus_equals: return "+=";
+    case op_minus_equals: return "-=";
+    case op_star_equals: return "*=";
+    case op_slash_equals: return "/=";
+    case op_percent_equals: return "%=";
+    case op_caret_equals: return "^=";
+    case op_ampersand_equals: return "&=";
+    case op_pipe_equals: return "|=";
+    case op_equals_equals: return "==";
+    case op_exclamation_equals: return "!=";
+    case op_less: return "<";
+    case op_greater: return ">";
+    case op_less_equals: return "<=";
+    case op_greater_equals: return ">=";
+    case op_spaceship: return "<=>";
+    case op_ampersand_ampersand: return "&&";
+    case op_pipe_pipe: return "||";
+    case op_less_less: return "<<";
+    case op_greater_greater: return ">>";
+    case op_less_less_equals: return "<<=";
+    case op_greater_greater_equals: return ">>=";
+    case op_plus_plus: return "++";
+    case op_minus_minus: return "--";
+    case op_comma: return ",";
+  }
+  return "<invalid operator>";
+}
+
+constexpr std::meta::operators to_operator(std::string_view text) {
+  constexpr static auto hash = [](std::string_view str) constexpr {
+    auto hasher = _impl::FNV1a{};
+    hasher(str);
+    return hasher.finalize();
+  };
+
+  switch (hash(text)) {
+    using enum std::meta::operators;
+    case hash("new"): return op_new;
+    case hash("delete"): return op_delete;
+    case hash("new[]"): return op_array_new;
+    case hash("delete[]"): return op_array_delete;
+    case hash("co_await"): return op_co_await;
+    case hash("()"): return op_parentheses;
+    case hash("[]"): return op_square_brackets;
+    case hash("->"): return op_arrow;
+    case hash("->*"): return op_arrow_star;
+    case hash("~"): return op_tilde;
+    case hash("!"): return op_exclamation;
+    case hash("+"): return op_plus;
+    case hash("-"): return op_minus;
+    case hash("*"): return op_star;
+    case hash("/"): return op_slash;
+    case hash("%"): return op_percent;
+    case hash("^"): return op_caret;
+    case hash("&"): return op_ampersand;
+    case hash("|"): return op_pipe;
+    case hash("="): return op_equals;
+    case hash("+="): return op_plus_equals;
+    case hash("-="): return op_minus_equals;
+    case hash("*="): return op_star_equals;
+    case hash("/="): return op_slash_equals;
+    case hash("%="): return op_percent_equals;
+    case hash("^="): return op_caret_equals;
+    case hash("&="): return op_ampersand_equals;
+    case hash("|="): return op_pipe_equals;
+    case hash("=="): return op_equals_equals;
+    case hash("!="): return op_exclamation_equals;
+    case hash("<"): return op_less;
+    case hash(">"): return op_greater;
+    case hash("<="): return op_less_equals;
+    case hash(">="): return op_greater_equals;
+    case hash("<=>"): return op_spaceship;
+    case hash("&&"): return op_ampersand_ampersand;
+    case hash("||"): return op_pipe_pipe;
+    case hash("<<"): return op_less_less;
+    case hash(">>"): return op_greater_greater;
+    case hash("<<="): return op_less_less_equals;
+    case hash(">>="): return op_greater_greater_equals;
+    case hash("++"): return op_plus_plus;
+    case hash("--"): return op_minus_minus;
+    case hash(","): return op_comma;
+    default: return {};
+  }
+  return {};
+}
+}  // namespace rsl::_impl// ---- end: rsl/_impl/serialize/operators.hpp ----
+
+
+// ---- begin: rsl/_impl/serialize/to_string.hpp ----
+#include <string>
+#include <cstdint>
+
+namespace rsl::_serialize_impl {
+constexpr std::string utos(std::uint64_t value) {
+  std::string out{};
+  do {
+    out += static_cast<char>('0' + (value % 10U));
+    value /= 10;
+  } while (value > 0);
+  return {out.rbegin(), out.rend()};
+}
+
+constexpr std::uint64_t stou(std::string_view str) {
+  unsigned result = 0;
+  for (char const c : str) {
+    (result *= 10) += c - '0';
+  }
+  return result;
+}
+}  // namespace rsl::_serialize_impl
+// ---- end: rsl/_impl/serialize/to_string.hpp ----
+
+
+// ---- begin: rsl/_impl/serialize/enum.hpp ----
+#include <meta>
+#include <ranges>
+#include <algorithm>
+#include <bit>
+
+namespace rsl::_serialize_impl {
+template <typename T>
+struct Enumerator {
+  T value;
+  char const* name;
+};
+
+template <typename T>
+consteval auto sorted_enum_pairs() {
+  auto enumerators =
+      std::vector(std::from_range, enumerators_of(^^T) | std::views::transform([](auto e) {
+                                     return Enumerator(extract<T>(constant_of(e)),
+                                                       define_static_string(identifier_of(e)));
+                                   }));
+
+  using sort_t = std::make_unsigned_t<std::underlying_type_t<T>>;
+  std::ranges::stable_sort(enumerators, std::ranges::greater{}, [](auto const& e) {
+    return std::popcount(static_cast<sort_t>(e.value));
+  });
+
+  return enumerators;
+}
+
+}  // namespace rsl::_serialize_impl// ---- end: rsl/_impl/serialize/enum.hpp ----
+
+
+// ---- begin: rsl/serializer/repr.hpp ----
+#include <cstddef>
+#include <string>
+#include <type_traits>
+#include <meta>
+#include <algorithm>
+#include <charconv>
+
+
+// ---- begin: rsl/meta_traits ----
+#include <meta>
+
+namespace rsl {
+
+namespace meta {
+template <std::meta::info T, std::meta::info Template>
+concept specializes = is_specialization(T, Template);
+
+template <std::meta::info R>
+concept function = is_function(R);
+
+template <std::meta::info R>
+concept member_function = is_member_function(R);
+
+template <std::meta::info R>
+concept static_member_function = is_static_member_function(R);
+
+template <std::meta::info R>
+concept nonstatic_member_function = is_nonstatic_member_function(R);
+
+template <std::meta::info R, std::meta::info T>
+concept annotated_with = has_annotation(R, T);
+
+template <std::meta::info T>
+concept complete_type = is_complete_type(T);
+
+template <std::meta::info T>
+concept incomplete_type = !complete_type<T>;
+}  // namespace meta
+
+template <typename T, std::meta::info Template>
+concept specializes = meta::specializes<^^T, Template>;
+
+template <typename T>
+concept complete_type = meta::complete_type<^^T>;
+
+template <typename T>
+concept incomplete_type = !complete_type<T>;
+}  // namespace rsl// ---- end: rsl/meta_traits ----
+
+
+// ---- begin: rsl/string_view ----
+#include <concepts>
+#include <iterator>
+#include <limits>
+#include <memory>
+#include <ranges>
+#include <stdexcept>
+#include <type_traits>
+#include <string>
+#include <format>
+
+//? compat
+#include <string_view>
+
+
+// ---- begin: rsl/_impl/wrap_iter.hpp ----
+#include <iterator>
+
+namespace rsl::_span_impl {
+struct span_common;
+}
+
+namespace rsl::_impl {
+template <typename It>
+class WrappedIterator {
+public:
+  using iterator_type     = It;
+  using value_type        = typename std::iterator_traits<iterator_type>::value_type;
+  using difference_type   = typename std::iterator_traits<iterator_type>::difference_type;
+  using pointer           = typename std::iterator_traits<iterator_type>::pointer;
+  using reference         = typename std::iterator_traits<iterator_type>::reference;
+  using iterator_category = typename std::iterator_traits<iterator_type>::iterator_category;
+  using iterator_concept  = std::contiguous_iterator_tag;
+
+private:
+  iterator_type _impl_iter;
+
+public:
+  constexpr WrappedIterator() noexcept : _impl_iter() {}
+  template <typename OtherIt>
+    requires(
+        std::is_convertible_v<const OtherIt&, It> &&
+        (std::same_as<reference, typename std::iterator_traits<OtherIt>::reference> ||
+         std::same_as<
+             reference,
+             std::remove_reference_t<typename std::iterator_traits<OtherIt>::reference> const&>))
+  constexpr explicit(false) WrappedIterator(const WrappedIterator<OtherIt>& other) noexcept
+      : _impl_iter(other._impl_iter) {}
+
+  constexpr reference operator*() const noexcept { return *_impl_iter; }
+  constexpr pointer operator->() const noexcept { return std::to_address(_impl_iter); }
+
+  constexpr WrappedIterator& operator++() noexcept {
+    ++_impl_iter;
+    return *this;
+  }
+
+  constexpr WrappedIterator operator++(int) noexcept {
+    WrappedIterator tmp(*this);
+    ++(*this);
+    return tmp;
+  }
+
+  constexpr WrappedIterator& operator--() noexcept {
+    --_impl_iter;
+    return *this;
+  }
+
+  constexpr WrappedIterator operator--(int) noexcept {
+    WrappedIterator tmp(*this);
+    --(*this);
+    return tmp;
+  }
+
+  constexpr WrappedIterator operator+(difference_type n) const noexcept {
+    WrappedIterator tmp(*this);
+    tmp += n;
+    return tmp;
+  }
+
+  constexpr WrappedIterator& operator+=(difference_type n) noexcept {
+    _impl_iter += n;
+    return *this;
+  }
+
+  constexpr WrappedIterator operator-(difference_type n) const noexcept { return *this + (-n); }
+
+  constexpr WrappedIterator& operator-=(difference_type n) noexcept {
+    *this += -n;
+    return *this;
+  }
+  constexpr reference operator[](difference_type n) const noexcept { return _impl_iter[n]; }
+
+  constexpr iterator_type base() const noexcept { return _impl_iter; }
+
+private:
+  constexpr explicit WrappedIterator(iterator_type it) noexcept : _impl_iter(it) {}
+
+  template <typename T>
+  friend class WrappedIterator;
+
+  template <typename CharT, typename Traits>
+  friend class basic_string_view;
+
+  template <typename T, std::size_t>
+  friend class span;
+  friend class _span_impl::span_common;
+};
+
+template <typename It>
+constexpr bool operator==(const WrappedIterator<It>& rhs,
+                                  const WrappedIterator<It>& lhs) noexcept {
+  return rhs.base() == lhs.base();
+}
+
+template <typename It1, typename It2>
+constexpr bool operator==(const WrappedIterator<It1>& rhs,
+                                  const WrappedIterator<It2>& lhs) noexcept {
+  return rhs.base() == lhs.base();
+}
+
+template <typename It>
+constexpr bool operator<(const WrappedIterator<It>& rhs,
+                         const WrappedIterator<It>& lhs) noexcept {
+  return rhs.base() < lhs.base();
+}
+
+template <typename It1, typename It2>
+constexpr bool operator<(const WrappedIterator<It1>& rhs,
+                         const WrappedIterator<It2>& lhs) noexcept {
+  return rhs.base() < lhs.base();
+}
+
+template <typename It1, typename It2>
+constexpr std::strong_ordering operator<=>(const WrappedIterator<It1>& rhs,
+                                           const WrappedIterator<It2>& lhs) noexcept {
+  if constexpr (std::three_way_comparable_with<It1, It2, std::strong_ordering>) {
+    return rhs.base() <=> lhs.base();
+  } else {
+    if (rhs.base() < lhs.base()){
+      return std::strong_ordering::less;}
+
+    if (rhs.base() == lhs.base()){
+      return std::strong_ordering::equal;}
+
+    return std::strong_ordering::greater;
+  }
+}
+
+template <typename It1, typename It2>
+constexpr auto operator-(const WrappedIterator<It1>& rhs,
+                         const WrappedIterator<It2>& lhs) noexcept
+    -> decltype(rhs.base() - lhs.base()) {
+  return rhs.base() - lhs.base();
+}
+
+template <typename It>
+constexpr WrappedIterator<It> operator+(typename WrappedIterator<It>::difference_type n,
+                                            WrappedIterator<It> it) noexcept {
+  it += n;
+  return it;
+}
+}  // namespace rsl::_impl
+
+template <typename It>
+struct std::pointer_traits<rsl::_impl::WrappedIterator<It> > {
+  using pointer         = rsl::_impl::WrappedIterator<It>;
+  using element_type    = typename std::pointer_traits<It>::element_type;
+  using difference_type = typename std::pointer_traits<It>::difference_type;
+
+  constexpr static element_type* to_address(pointer it) noexcept {
+    return std::to_address(it.base());
+  }
+};// ---- end: rsl/_impl/wrap_iter.hpp ----
+
+
+#include <meta>
+
+namespace rsl {
+template <typename CharT, typename Traits = std::char_traits<CharT>>
+class basic_string_view {
+public:
+  // types
+  using traits_type               = Traits;
+  using value_type                = CharT;
+  using pointer                   = value_type*;
+  using const_pointer             = value_type const*;
+  using reference                 = value_type&;
+  using const_reference           = value_type const&;
+  using const_iterator            = const_pointer;
+  using iterator                  = const_iterator;
+  using const_reverse_iterator    = std::reverse_iterator<const_iterator>;
+  using reverse_iterator          = const_reverse_iterator;
+  using size_type                 = size_t;
+  using difference_type           = ptrdiff_t;
+  static constexpr size_type npos = size_type(-1);
+
+  static_assert(!std::is_array_v<value_type>,
+                "Character type of basic_string_view must not be an array");
+  static_assert(std::is_standard_layout_v<value_type>,
+                "Character type of basic_string_view must be standard-layout");
+  static_assert(std::is_trivially_copyable_v<CharT> &&
+                    std::is_trivially_default_constructible_v<CharT>,
+                "Character type of basic_string_view must be trivial");
+  static_assert(std::same_as<CharT, typename traits_type::char_type>,
+                "traits_type::char_type must be the same type as CharT");
+
+  // [string.view.cons], construction and assignment
+  constexpr basic_string_view() noexcept : _impl_data(nullptr), _impl_size(0) {}
+  constexpr basic_string_view(basic_string_view const&) noexcept            = default;
+  constexpr basic_string_view& operator=(basic_string_view const&) noexcept = default;
+  basic_string_view(nullptr_t)                                              = delete;
+
+  constexpr explicit(false) basic_string_view(const CharT* str)
+      : _impl_data(str)
+      , _impl_size(std::char_traits<CharT>::length(str)) {}
+  constexpr basic_string_view(CharT const* str, size_type len) : _impl_data(str), _impl_size(len) {}
+
+  template <std::contiguous_iterator It, std::sized_sentinel_for<It> End>
+    requires(std::same_as<std::iter_value_t<It>, CharT> && !std::is_convertible_v<End, size_type>)
+  constexpr basic_string_view(It begin, End end)
+      : _impl_data(std::to_address(begin))
+      , _impl_size(end - begin) {}
+
+  template <typename R>
+    requires(!std::same_as<std::remove_cvref_t<R>, basic_string_view> &&
+             std::ranges::sized_range<R> && std::ranges::contiguous_range<R> &&
+             std::same_as<std::ranges::range_value_t<R>, CharT> &&
+             !std::is_convertible_v<R, CharT const*> && (!requires(std::remove_cvref_t<R>& range) {
+               range.operator rsl::basic_string_view<CharT, Traits>;
+             }))
+  constexpr explicit basic_string_view(R&& r)
+      : _impl_data(std::ranges::data(r))
+      , _impl_size(std::ranges::size(r)) {}
+
+  //? compat
+  constexpr explicit(false) basic_string_view(std::basic_string_view<CharT, Traits> const& other)
+      : _impl_data(other.data())
+      , _impl_size(other.size()) {}
+
+  //? compat
+  constexpr explicit(false) operator std::basic_string_view<CharT, Traits>() const {
+    return {_impl_data, _impl_size};
+  }
+
+  // [string.view.iterators], iterator support
+  [[nodiscard]] constexpr const_iterator begin() const noexcept { return _impl_data; }
+  [[nodiscard]] constexpr const_iterator end() const noexcept { return &_impl_data[_impl_size]; }
+  [[nodiscard]] constexpr const_iterator cbegin() const noexcept { return begin(); }
+  [[nodiscard]] constexpr const_iterator cend() const noexcept { return end(); }
+  [[nodiscard]] constexpr const_reverse_iterator rbegin() const noexcept { return {cend()}; }
+  [[nodiscard]] constexpr const_reverse_iterator rend() const noexcept { return {cbegin()}; }
+  [[nodiscard]] constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+  [[nodiscard]] constexpr const_reverse_iterator crend() const noexcept { return rend(); }
+
+  // [string.view.capacity], capacity
+  [[nodiscard]] constexpr size_type size() const noexcept { return _impl_size; }
+  [[nodiscard]] constexpr size_type length() const noexcept { return _impl_size; }
+  [[nodiscard]] constexpr size_type max_size() const noexcept {
+    return std::numeric_limits<size_type>::max() / sizeof(value_type);
+  }
+  [[nodiscard]] constexpr bool empty() const noexcept { return _impl_size == 0; }
+
+  // [string.view.access], element access
+  [[nodiscard]] constexpr const_reference operator[](size_type pos) const {
+    return _impl_data[pos];
+  }
+  [[nodiscard]] constexpr const_reference at(size_type pos) const {
+    if (pos >= size()) {
+      throw std::out_of_range("basic_string_view::at");
+    }
+    return _impl_data[pos];
+  }
+  [[nodiscard]] constexpr const_reference front() const { return _impl_data[0]; }
+  [[nodiscard]] constexpr const_reference back() const { return _impl_data[_impl_size]; }
+  [[nodiscard]] constexpr const_pointer data() const noexcept { return _impl_data; }
+
+  // [string.view.modifiers], modifiers
+  constexpr void remove_prefix(size_type n) {
+    _impl_data += n;
+    _impl_size -= n;
+  }
+  constexpr void remove_suffix(size_type n) { _impl_size -= n; }
+  constexpr void swap(basic_string_view& s) noexcept {
+    swap(s._impl_data, _impl_data);
+    swap(s._impl_size, _impl_size);
+  }
+
+  // [string.view.ops], string operations
+  constexpr size_type copy(CharT* s, size_type n, size_type pos = 0) const {
+    if (pos > size()) {
+      throw std::out_of_range("basic_string_view::copy");
+    }
+    size_type min_len = std::min(n, size() - pos);
+    Traits::copy(s, data() + pos, min_len);
+    return min_len;
+  }
+
+  [[nodiscard]] constexpr basic_string_view substr(size_type pos = 0, size_type n = npos) const {
+    if (pos > size()) {
+      throw std::out_of_range("basic_string_view::substr");
+    }
+
+    return basic_string_view(data() + pos, std::min(n, size() - pos));
+  }
+
+  [[nodiscard]] constexpr int compare(basic_string_view other) const noexcept {
+    size_type min_len = std::min(size(), other.size());
+    int ret           = Traits::compare(data(), other.data(), min_len);
+    if (ret == 0) {
+      // first `min_len` chars matched
+      return size() == other.size() ? 0 : (size() < other.size() ? -1 : 1);
+    }
+    return ret;
+  }
+
+  [[nodiscard]] constexpr int compare(size_type pos1, size_type n1, basic_string_view s) const {
+    return substr(pos1, n1).compare(s);
+  }
+
+  [[nodiscard]] constexpr int compare(size_type pos1,
+                                      size_type n1,
+                                      basic_string_view s,
+                                      size_type pos2,
+                                      size_type n2) const {
+    return substr(pos1, n1).compare(s.substr(pos2, n2));
+  }
+
+  [[nodiscard]] constexpr int compare(const CharT* s) const {
+    return compare(basic_string_view(s));
+  }
+
+  [[nodiscard]] constexpr int compare(size_type pos1, size_type n1, const CharT* s) const {
+    return substr(pos1, n1).compare(basic_string_view(s));
+  }
+  [[nodiscard]] constexpr int compare(size_type pos1,
+                                      size_type n1,
+                                      const CharT* s,
+                                      size_type n2) const {
+    return substr(pos1, n1).compare(basic_string_view(s, n2));
+  }
+
+  [[nodiscard]] constexpr bool starts_with(basic_string_view other) const noexcept {
+    if (size() < other.size()) {
+      return false;
+    }
+    return compare(0, other.size(), other) == 0;
+  }
+
+  [[nodiscard]] constexpr bool starts_with(CharT other) const noexcept {
+    return !empty() && Traits::eq(front(), other);
+  }
+
+  [[nodiscard]] constexpr bool starts_with(CharT const* other) const {
+    return starts_with(basic_string_view(other));
+  }
+
+  [[nodiscard]] constexpr bool ends_with(basic_string_view other) const noexcept {
+    if (size() < other.size()) {
+      return false;
+    }
+    return compare(size() - other.size(), npos, other) == 0;
+  }
+  [[nodiscard]] constexpr bool ends_with(CharT other) const noexcept {
+    return !empty() && Traits::eq(back(), other);
+  }
+  [[nodiscard]] constexpr bool ends_with(CharT const* other) const {
+    return end_swith(basic_string_view(other));
+  }
+
+  [[nodiscard]] constexpr bool contains(basic_string_view other) const noexcept {
+    return find(other) != npos;
+  }
+  [[nodiscard]] constexpr bool contains(CharT other) const noexcept { return find(other) != npos; }
+  [[nodiscard]] constexpr bool contains(CharT const* other) const { return find(other) != npos; }
+
+  // [string.view.find], searching
+  [[nodiscard]] constexpr size_type find(basic_string_view s, size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find(CharT c, size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find(c, pos);
+  }
+  [[nodiscard]] constexpr size_type find(CharT const* s, size_type pos, size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find(CharT const* s, size_type pos = 0) const {
+    return std::string_view(_impl_data, _impl_size).find(s, pos);
+  }
+  [[nodiscard]] constexpr size_type rfind(basic_string_view s,
+                                          size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).rfind(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type rfind(CharT c, size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).rfind(c, pos);
+  }
+  [[nodiscard]] constexpr size_type rfind(CharT const* s, size_type pos, size_type n) const {
+    return std::string_view(_impl_data, _impl_size).rfind(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type rfind(CharT const* s, size_type pos = npos) const {
+    return std::string_view(_impl_data, _impl_size).rfind(s, pos);
+  }
+
+  [[nodiscard]] constexpr size_type find_first_of(basic_string_view s,
+                                                  size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_first_of(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find_first_of(CharT c, size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_first_of(c, pos);
+  }
+  [[nodiscard]] constexpr size_type find_first_of(CharT const* s,
+                                                  size_type pos,
+                                                  size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find_first_of(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find_first_of(CharT const* s, size_type pos = 0) const {
+    return std::string_view(_impl_data, _impl_size).find_first_of(s, pos);
+  }
+  [[nodiscard]] constexpr size_type find_last_of(basic_string_view s,
+                                                 size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_last_of(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find_last_of(CharT c, size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_last_of(c, pos);
+  }
+  [[nodiscard]] constexpr size_type find_last_of(CharT const* s, size_type pos, size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find_last_of(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find_last_of(CharT const* s, size_type pos = npos) const {
+    return std::string_view(_impl_data, _impl_size).find_last_of(s, pos);
+  }
+  [[nodiscard]] constexpr size_type find_first_not_of(basic_string_view s,
+                                                      size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size)
+        .find_first_not_of(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find_first_not_of(CharT c, size_type pos = 0) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_first_not_of(c, pos);
+  }
+  [[nodiscard]] constexpr size_type find_first_not_of(CharT const* s,
+                                                      size_type pos,
+                                                      size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find_first_not_of(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find_first_not_of(CharT const* s, size_type pos = 0) const {
+    return std::string_view(_impl_data, _impl_size).find_first_not_of(s, pos);
+  }
+  [[nodiscard]] constexpr size_type find_last_not_of(basic_string_view s,
+                                                     size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_last_of(s._impl_data, pos, s._impl_size);
+  }
+  [[nodiscard]] constexpr size_type find_last_not_of(CharT c, size_type pos = npos) const noexcept {
+    return std::string_view(_impl_data, _impl_size).find_last_not_of(c, pos);
+  }
+  [[nodiscard]] constexpr size_type find_last_not_of(CharT const* s,
+                                                     size_type pos,
+                                                     size_type n) const {
+    return std::string_view(_impl_data, _impl_size).find_last_not_of(s, pos, n);
+  }
+  [[nodiscard]] constexpr size_type find_last_not_of(CharT const* s, size_type pos = npos) const {
+    return std::string_view(_impl_data, _impl_size).find_last_not_of(s, pos);
+  }
+
+  const_pointer _impl_data;
+  size_type _impl_size;
+};
+
+// [string.view.deduct], deduction guides
+template <std::contiguous_iterator It, std::sized_sentinel_for<It> End>
+basic_string_view(It, End) -> basic_string_view<std::iter_value_t<It>>;
+
+template <std::ranges::contiguous_range R>
+basic_string_view(R&&) -> basic_string_view<std::ranges::range_value_t<R>>;
+
+// [string.view.comparison], non-member comparison functions
+template <typename CharT, typename Traits>
+constexpr bool operator==(basic_string_view<CharT, Traits> lhs,
+                          std::basic_string_view<CharT, Traits> rhs) noexcept {
+  // this is a better match for comparisons of rsl::string_view to std::string_view, it
+  // disambiguates
+  return std::string_view(lhs) == rhs;
+}
+
+template <typename CharT, typename Traits>
+constexpr bool operator==(basic_string_view<CharT, Traits> lhs,
+                          std::type_identity_t<basic_string_view<CharT, Traits>> rhs) noexcept {
+  if (lhs.size() != rhs.size()) {
+    return false;
+  }
+  return lhs.compare(rhs) == 0;
+}
+
+template <typename CharT, typename Traits>
+constexpr auto operator<=>(basic_string_view<CharT, Traits> lhs,
+                           std::basic_string_view<CharT, Traits> rhs) noexcept {
+  // better match for comparisons between rsl::string_view and std::string_view
+  return std::string_view(lhs) <=> rhs;
+}
+
+template <typename CharT, typename Traits>
+constexpr auto operator<=>(basic_string_view<CharT, Traits> lhs,
+                           std::type_identity_t<basic_string_view<CharT, Traits>> rhs) noexcept {
+  if constexpr (requires { typename Traits::comparison_category; }) {
+    return static_cast<typename Traits::comparison_category>(lhs.compare(rhs) <=> 0);
+  } else {
+    return static_cast<std::weak_ordering>(lhs.compare(rhs) <=> 0);
+  }
+}
+
+// basic_string_view typedef-names
+using string_view    = basic_string_view<char>;
+using u8string_view  = basic_string_view<char8_t>;
+using u16string_view = basic_string_view<char16_t>;
+using u32string_view = basic_string_view<char32_t>;
+using wstring_view   = basic_string_view<wchar_t>;
+
+inline namespace literals {
+inline namespace string_view_literals {
+// [string.view.literals], suffix for basic_string_view literals
+$diagnostics(push)
+$diagnostics(disable, literal_suffix)
+
+constexpr string_view operator""sv(const char* str, size_t len) noexcept {
+  return {str, len};
+}
+constexpr u8string_view operator""sv(const char8_t* str, size_t len) noexcept {
+  return {str, len};
+}
+constexpr u16string_view operator""sv(const char16_t* str, size_t len) noexcept {
+  return {str, len};
+}
+constexpr u32string_view operator""sv(const char32_t* str, size_t len) noexcept {
+  return {str, len};
+}
+constexpr wstring_view operator""sv(const wchar_t* str, size_t len) noexcept {
+  return {str, len};
+}
+
+$diagnostics(pop)
+
+}  // namespace string_view_literals
+}  // namespace literals
+}  // namespace rsl
+
+// [string.view.hash], hash support
+template <>
+struct std::hash<rsl::string_view>;
+template <>
+struct std::hash<rsl::u8string_view>;
+template <>
+struct std::hash<rsl::u16string_view>;
+template <>
+struct std::hash<rsl::u32string_view>;
+template <>
+struct std::hash<rsl::wstring_view>;
+
+template <class charT, class traits>
+constexpr bool std::ranges::enable_view<rsl::basic_string_view<charT, traits>> = true;
+template <class charT, class traits>
+constexpr bool std::ranges::enable_borrowed_range<rsl::basic_string_view<charT, traits>> = true;
+
+// [string.view.io], inserters and extractors
+template <class CharT, class Traits>
+std::basic_ostream<CharT, Traits>& operator<<(std::basic_ostream<CharT, Traits>& os,
+                                              rsl::basic_string_view<CharT, Traits> str) {
+  // TODO
+  os << std::string_view(str);
+}
+
+// TODO
+template <typename CharT, typename Traits>
+struct std::formatter<rsl::basic_string_view<CharT, Traits>, CharT>
+    : std::formatter<std::basic_string_view<CharT>, CharT> {
+  using base = std::formatter<std::basic_string_view<CharT>, CharT>;
+  // constexpr auto parse(std::format_parse_context& ctx) { }
+
+  constexpr auto format(rsl::basic_string_view<CharT, Traits> const& obj,
+                        std::format_context& ctx) const {
+    // return std::format_to(ctx.out(), std::string_view(obj._impl_data, obj._impl_size));
+    return base::format(std::string_view(obj), ctx);
+  }
+};
+// ---- end: rsl/string_view ----
+
+
+
+// ---- begin: machinery.hpp ----
+#include <meta>
+#include <ranges>
+
+
+
+// ---- begin: annotations.hpp ----
+
+namespace rsl::inline annotations {
+struct Skip {};
+constexpr inline Skip skip{};
+};  // namespace rsl::inline annotations// ---- end: annotations.hpp ----
+
+
+namespace rsl::serializer {
+
+template <typename T>
+concept is_meta = requires {
+  { T::info } -> std::convertible_to<std::meta::info>;
+};
+
+template <typename T>
+concept has_members = is_meta<T> && requires {
+  { T::members } -> std::convertible_to<std::span<std::meta::info const>>;
+};
+
+template <typename T>
+concept is_iterable = is_meta<T> && T::iterable;
+
+template <typename T>
+concept is_optional = is_meta<T> && T::is_optional;
+
+struct Unsupported {};
+
+template <typename T>
+struct Meta : Unsupported {
+  static constexpr std::meta::info info = ^^T;
+  using type                            = T;
+
+  template <typename U, typename F>
+    requires(std::same_as<std::remove_cvref_t<U>, T>)
+  constexpr void descend(F&& visitor, U&& value) {}
+};
+
+template <typename T>
+  requires(std::is_scalar_v<T> && !std::is_pointer_v<T>)
+struct Meta<T> {
+  static constexpr std::meta::info info = ^^T;
+  using type                            = T;
+
+  template <typename U, typename F>
+    requires(std::same_as<std::remove_cvref_t<U>, T>)
+  constexpr void descend(F&& visitor, U&& value) {}
+};
+
+template <std::size_t Idx, std::meta::info R, typename T>
+struct Member : Meta<T> {
+  static constexpr std::meta::info info = R;
+  static constexpr std::size_t index    = Idx;
+};
+
+template <typename T>
+  requires(std::is_aggregate_v<T> && !std::is_array_v<T>)
+struct Meta<T> {
+  static constexpr std::meta::info info = ^^T;
+  static constexpr auto members =
+      define_static_array(nonstatic_data_members_of(info, std::meta::access_context::current()));
+  using type = T;
+
+  template <typename F, typename U>
+    requires(std::same_as<std::remove_cvref_t<U>, T>)
+  constexpr void descend(F&& visitor, U&& value) {
+    template for (constexpr auto Idx : $define_static_array(std::views::iota(0ZU, members.size()))) {
+      constexpr auto M = members[Idx];
+      if constexpr (!meta::has_annotation(M, ^^annotations::Skip)) {
+        std::invoke(visitor, Member<Idx, M, typename[:type_of(M):]>{}, value.[:M:]);
+      }
+    }
+  }
+};
+
+template <std::ranges::range T>
+  requires(std::constructible_from<std::initializer_list<typename T::value_type>> &&
+           !std::convertible_to<T, std::string_view>)
+struct Meta<T> {
+  using type         = T;
+  using element_type = typename T::value_type;
+
+  constexpr static std::meta::info info = ^^T;
+  constexpr static bool can_descend     = true;
+  constexpr static bool iterable        = true;
+  constexpr static bool associative     = requires {
+    typename type::key_type;
+    typename type::mapped_type;
+  };
+
+  template <typename F, typename U>
+    requires(std::same_as<std::remove_cvref_t<U>, T>)
+  constexpr void descend(F&& visitor, U&& value) {
+    for (auto&& item : value) {
+      std::invoke(visitor, Meta<std::remove_cvref_t<decltype(item)>>{}, item);
+    }
+  }
+};
+
+template <typename First, typename Second>
+struct Meta<std::pair<First, Second>> {
+  using type = std::pair<First, Second>;
+  constexpr static std::meta::info info = dealias(^^type);
+
+  template <typename S, typename F, typename U>
+    requires(std::same_as<std::remove_cvref_t<U>, type>)
+  constexpr void descend(this S&& self, F&& visitor, U&& value) {
+    std::invoke(std::forward<F>(visitor), Meta<std::remove_cvref_t<First>>{}, value.first);
+    std::invoke(std::forward<F>(visitor), Meta<std::remove_cvref_t<Second>>{}, value.second);
+  }
+};
+
+template <typename T>
+struct Meta<std::optional<T>> {
+  using type                            = std::optional<T>;
+  using element_type                    = T;
+  constexpr static std::meta::info info = dealias(^^type);
+  constexpr static bool is_optional     = true;
+
+  template <typename S, typename F, typename U>
+    requires(std::same_as<std::remove_cvref_t<U>, type>)
+  constexpr void descend(this S&& self, F&& visitor, U&& value) {
+    if (value.has_value()) {
+      std::invoke(std::forward<F>(visitor), Meta<std::remove_cvref_t<T>>{}, *value);
+    }
+  }
+};
+
+template <std::convertible_to<std::string_view> T>
+struct Meta<T> {
+  using type = T;
+  constexpr static std::meta::info info = ^^T;
+
+  template <typename S, typename F, typename U>
+    requires(std::same_as<std::remove_cvref_t<U>, type>)
+  constexpr void descend(this S&& self, F&& visitor, U&& value) {}
+};
+
+}  // namespace rsl::serializer// ---- end: machinery.hpp ----
+
+
+namespace rsl {
+template <typename T, typename V>
+constexpr void serialize(T&& serializer, V&& data);
+}
+
+namespace rsl::serializer {
+
+enum class NameMode : std::uint8_t { unqualified, qualified, fully_qualified };
+
+namespace _impl {
+template <typename T>
+consteval std::string get_via_adl() {
+  if constexpr (requires(std::type_identity<T> id) {
+                  { preferred_name(id) } -> std::convertible_to<std::string>;
+                }) {
+    return std::string(preferred_name(std::type_identity<T>()));
+  }
+  return "";
+}
+
+struct Annotated {};
+}  // namespace _impl
+
+template <typename T>
+struct preferred_name;
+
+template <>
+struct preferred_name<_impl::Annotated> {
+  rsl::string_view value;
+  consteval explicit preferred_name(std::string_view name) : value(define_static_string(name)) {}
+  constexpr bool operator<=>(const preferred_name&) const = default;
+};
+
+template <std::convertible_to<std::string_view> T>
+preferred_name(T&&) -> preferred_name<_impl::Annotated>;
+
+template <>
+struct preferred_name<std::string> {
+  constexpr static auto value = "string";
+};
+
+template <>
+struct preferred_name<std::string_view> {
+  constexpr static auto value = "string_view";
+};
+
+namespace _impl {
+template <typename T>
+consteval std::string get_type_name(NameMode mode);
+
+consteval std::vector<std::string_view> get_fully_qualified_name(std::meta::info R) {
+  std::vector<std::string_view> name{identifier_of(R)};
+
+  std::ranges::reverse(name);
+  return name;
+}
+
+template <typename T>
+consteval std::string namespace_prefix() {
+  if constexpr (std::is_fundamental_v<T>) {
+    return "";
+  }
+
+  std::string ret;
+  auto current = ^^T;
+  while (meta::has_parent(current)) {
+    current = parent_of(current);
+    if (!has_identifier(current) || identifier_of(current).starts_with("__")) {
+      // do not print namespaces with reserved identifiers
+      // this is a hack, but it cleans up standard library names a lot
+      continue;
+    }
+    ret.insert(0, std::string(identifier_of(current)) + "::");
+  }
+
+  return ret;
+}
+}  // namespace _impl
+
+template <typename T, NameMode Mode = NameMode::unqualified>
+constexpr inline std::string_view type_name = define_static_string(_impl::get_type_name<T>(Mode));
+
+template <typename T>
+constexpr inline std::string_view unqualified_name = type_name<T, NameMode::unqualified>;
+
+template <typename T>
+constexpr inline std::string_view qualified_name = type_name<T, NameMode::qualified>;
+
+template <typename T>
+constexpr inline std::string_view fully_qualified_name = type_name<T, NameMode::fully_qualified>;
+
+template <typename T, NameMode Mode>
+constexpr inline std::string_view type_name<T const, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + " const");
+
+template <typename T, NameMode Mode>
+constexpr inline std::string_view type_name<T const&, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + " const&");
+
+template <typename T, NameMode Mode>
+constexpr inline std::string_view type_name<T const&&, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + " const&&");
+
+template <typename T, NameMode Mode>
+constexpr inline std::string_view type_name<T&, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + "&");
+
+template <typename T, NameMode Mode>
+constexpr inline std::string_view type_name<T&&, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + "&&");
+
+template <typename T, NameMode Mode>  // TODO require T is not a function pointer
+constexpr inline std::string_view type_name<T*, Mode> =
+    define_static_string(std::string(type_name<T, Mode>) + "*");
+
+consteval std::string_view name_of(std::meta::info R, NameMode mode = NameMode::unqualified) {
+  if (is_type(R)) {
+    // return define_static_string(extract<std::string (*)()>(
+    //     substitute(^^_impl::get_canonical_recurse, {R, std::meta::reflect_constant(mode)}))());
+    return define_static_string(
+        extract<std::string_view const&>(substitute(^^type_name, {R, std::meta::reflect_constant(mode)})));
+  } else {
+    // TODO handle qualified/fully_qualified
+    // TODO collapse t.operator() to t()?
+    return display_string_of(R);
+  }
+}
+
+consteval std::string_view unqualified_name_of(std::meta::info R) {
+  return name_of(R, NameMode::unqualified);
+}
+
+consteval std::string_view qualified_name_of(std::meta::info R) {
+  return name_of(R, NameMode::qualified);
+}
+
+consteval std::string_view fully_qualified_name_of(std::meta::info R) {
+  return name_of(R, NameMode::fully_qualified);
+}
+
+struct Options {
+  NameMode names = NameMode::unqualified;
+  bool indent    = false;
+};
+
+class ReprVisitor {
+  std::string out;
+  Options opts;
+  bool separate     = false;
+  std::size_t level = 0;
+
+  constexpr void print_indent() {
+    if (opts.indent) {
+      out += '\n';
+      out.append(2 * level, ' ');
+    }
+  }
+
+  constexpr void print_separator() {
+    if (separate) {
+      out += ", ";
+    } else {
+      separate = true;
+    }
+    print_indent();
+  }
+
+  constexpr void increase_nesting() {
+    separate = false;
+    out += '{';
+    ++level;
+  }
+
+  constexpr void decrease_nesting() {
+    --level;
+    print_indent();
+    out += '}';
+    separate = true;
+  }
+
+  template <typename T>
+  constexpr void print_type() {
+    using CleanT = std::remove_cvref_t<T>;
+    switch (opts.names) {
+      case NameMode::qualified: out += qualified_name_of(remove_cvref(^^T)); break;
+      case NameMode::fully_qualified: out += fully_qualified_name_of(remove_cvref(^^T)); break;
+      case NameMode::unqualified: out += unqualified_name_of(remove_cvref(^^T)); break;
+    }
+  }
+
+public:
+  constexpr explicit ReprVisitor(Options opts = {}) : opts(opts) {}
+  constexpr ~ReprVisitor() = default;
+
+  constexpr std::string finalize() const { return out; }
+
+  template <typename T>
+  constexpr void operator()(Unsupported, T&& value) {
+    print_separator();
+    print_type<T>();
+    increase_nesting();
+    out += "/*...*/";
+    decrease_nesting();
+  }
+
+  template <has_members R, typename T>
+  constexpr void operator()(R meta, T&& value) {
+    print_separator();
+    print_type<T>();
+    increase_nesting();
+    meta.descend(*this, std::forward<T>(value));
+    decrease_nesting();
+  }
+
+  template <is_iterable R, typename T>
+  constexpr void operator()(R meta, T&& value) {
+    print_separator();
+    print_type<T>();
+    increase_nesting();
+    meta.descend(*this, std::forward<T>(value));
+    decrease_nesting();
+  }
+
+  constexpr void operator()(auto, std::convertible_to<std::string_view> auto const& value) {
+    print_separator();
+    out += '"';
+    out += std::string(value);  // allowed in C++26 constexpr
+    out += '"';
+  }
+
+  constexpr void operator()(auto, char value) {
+    print_separator();
+    out += '\'';
+    out += value;
+    out += '\'';
+  }
+
+  constexpr void operator()(auto, bool value) {
+    print_separator();
+    out += value ? "true" : "false";
+  }
+
+  template <typename T, typename U>
+  constexpr void operator()(auto meta, std::pair<T, U> const& pair) {
+    print_separator();
+    increase_nesting();
+    meta.descend(*this, pair);
+    decrease_nesting();
+  }
+
+  template <typename T>
+    requires std::is_floating_point_v<std::remove_cvref_t<T>>
+  constexpr void operator()(auto, T value) {
+    print_separator();
+    std::array<char, 64> buffer{};
+
+    auto [ptr, ec] = std::to_chars(buffer.data(),
+                                   buffer.data() + buffer.size(),
+                                   value,
+                                   std::chars_format::general);
+    if (ec != std::errc{}) {
+      out += "/* error */";
+      return;
+    }
+
+    std::string result(buffer.data(), ptr - buffer.data());
+
+    if constexpr (std::same_as<T, float>) {
+      result += 'F';
+    } else if constexpr (std::same_as<T, long double>) {
+      result += 'L';
+    }
+    out += result;
+  }
+
+  template <typename T>
+    requires std::is_integral_v<std::remove_cvref_t<T>>
+  constexpr void operator()(auto, T value) {
+    print_separator();
+    std::array<char, 32> buffer{};  // Enough for any 64-bit integer including sign
+    auto [ptr, ec] = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
+
+    if (ec != std::errc{}) {
+      out += "/* error */";
+      return;
+    }
+    out += std::string(buffer.data(), ptr - buffer.data());
+
+    if constexpr (std::is_unsigned_v<T>) {
+      out += 'U';
+    }
+    using Signed = std::make_signed_t<T>;
+    if constexpr (std::same_as<Signed, long>) {
+      out += 'L';
+    } else if constexpr (std::same_as<Signed, long long>) {
+      out += "LL";
+    }
+  }
+};
+
+namespace _impl {
+template <auto Value, NameMode mode>
+consteval std::string stringify_constant_impl() {
+  auto visitor = ReprVisitor{{.names = mode}};
+  rsl::serialize(visitor, Value);
+  return visitor.finalize();
+}
+
+template <auto Value, NameMode mode>
+constexpr std::string_view stringified_constant = define_static_string(stringify_constant_impl<Value, mode>());
+
+consteval std::string_view stringify_constant(std::meta::info R, NameMode mode = NameMode::unqualified) {
+  auto meta = substitute(^^stringified_constant, {R, std::meta::reflect_constant(mode)});
+  return extract<std::string_view const&>(meta);
+}
+}  // namespace _impl
+
+consteval std::string_view stringify_template_args(std::meta::info R,
+                                                   NameMode mode          = NameMode::unqualified,
+                                                   bool discard_defaulted = true) {
+  std::string ret = "<";
+  auto args       = template_arguments_of(R);
+  int required    = int(args.size()) - 1;
+  if (discard_defaulted) {
+    for (; required >= 0; --required) {
+      if (!can_substitute(template_of(R), args | std::views::take(required))) {
+        break;
+      }
+      if (substitute(template_of(R), args | std::views::take(required)) != R) {
+        break;
+      }
+    }
+  }
+  ++required;
+
+  bool first = true;
+  for (auto arg : args | std::views::take(required)) {
+    if (first) {
+      first = false;
+    } else {
+      ret += ", ";
+    }
+    if (is_type(arg)) {
+      ret += extract<std::string_view const&>(
+          substitute(^^type_name, {arg, std::meta::reflect_constant(mode)}));
+    } else if (is_value(arg) || is_object(arg)) {
+      // TODO
+      ret += _impl::stringify_constant(arg, mode);
+      // ret += display_string_of(arg);
+    } else if (has_identifier(arg)) {
+      // TODO allow customization for templates?
+      ret += identifier_of(arg);
+    } else {
+      ret += display_string_of(arg);
+    }
+  }
+  return define_static_string(ret + ">");
+}
+
+namespace _impl {
+template <typename T>
+consteval std::string get_type_name(NameMode mode) {
+  if constexpr (std::is_fundamental_v<T>) {
+    return std::string(display_string_of(^^T));
+  }
+
+  std::string ret;
+  if (mode == NameMode::fully_qualified) {
+    ret += "::";
+  }
+  if (mode != NameMode::unqualified) {
+    ret += _impl::namespace_prefix<std::remove_cvref_t<T>>();
+  }
+
+  if constexpr (complete_type<preferred_name<T>>) {
+    return ret + preferred_name<T>::value;
+  }
+  if constexpr (is_enumerable_type(^^T) &&
+                rsl::meta::has_annotation<preferred_name<_impl::Annotated>>(^^T)) {
+    return ret + [:constant_of(meta::_compat::annotations_of_with_type(^^T, ^^preferred_name<_impl::Annotated>)[0]):].value;
+  }
+  if constexpr (requires {
+                  { T::preferred_name } -> std::convertible_to<std::string>;
+                }) {
+    return ret + T::preferred_name;
+  }
+  if constexpr (requires {
+                  { T::preferred_name() } -> std::convertible_to<std::string>;
+                }) {
+    return ret + T::preferred_name();
+  }
+  if constexpr (requires(std::type_identity<T> id) {
+                  { preferred_name(id) } -> std::convertible_to<std::string>;
+                }) {
+    return ret + preferred_name(std::type_identity<T>());
+  }
+
+  if (auto name = _impl::get_via_adl<T>(); !name.empty()) {
+    return ret + name;
+  }
+
+  if constexpr (has_template_arguments(^^T)) {
+    auto templ = template_of(^^T);
+
+    if (has_identifier(templ)) {
+      ret += std::string(identifier_of(templ));
+    } else {
+      ret += "unnamed-template";
+    }
+    ret += stringify_template_args(^^T, mode);
+    return ret;
+  } else if constexpr (has_identifier(^^T)) {
+    return ret + identifier_of(^^T);
+  } else {
+    return ret + display_string_of(^^T);
+  }
+}
+}  // namespace _impl
+
+}  // namespace rsl::serializer// ---- end: rsl/serializer/repr.hpp ----
+
+
+
+namespace rsl {
+
+using serializer::NameMode;
+using serializer::preferred_name;
+
+using serializer::fully_qualified_name;
+using serializer::fully_qualified_name_of;
+using serializer::name_of;
+using serializer::qualified_name;
+using serializer::qualified_name_of;
+using serializer::type_name;
+using serializer::unqualified_name;
+using serializer::unqualified_name_of;
+
+
+template <typename T, typename V>
+constexpr void serialize(T&& serializer, V&& data) {
+  std::invoke(serializer, serializer::Meta<std::remove_cvref_t<V>>{}, std::forward<V>(data));
+}
+
+template <complete_type V, typename T, std::ranges::forward_range R>
+constexpr V deserialize(T&& deserializer, R&& data) {}
+
+template <typename T, complete_type V>
+constexpr void serialize_type(T&& serializer) {
+  return serializer.template operator()<^^V>();
+}
+
+template <typename T, std::ranges::forward_range R>
+consteval std::meta::info deserialize_type(T&& deserializer, R&& data) {
+  return deserializer(data);
+}
+
+constexpr std::string to_string(std::integral auto value) {
+  if constexpr (std::is_signed_v<decltype(value)>) {
+    if (value < 0) {
+      return std::string{'-'} + _serialize_impl::utos(-value);
+    }
+  }
+  return _serialize_impl::utos(value);
+}
+
+// can this be constexpr? fpenv?
+inline std::string to_string(std::floating_point auto value) {
+  return std::to_string(value);
+}
+
+// non-standard
+constexpr std::string to_string(bool value) {
+  return value ? "true" : "false";
+}
+
+constexpr std::string to_string(char value) {
+  return {value, 1};
+}
+
+constexpr std::string to_string(std::string_view value) {
+  return std::string{value};
+}
+
+constexpr std::string to_string(std::meta::operators op) {
+  return _serialize_impl::op_to_string(op);
+}
+
+template <typename T>
+  requires std::is_enum_v<T>
+constexpr std::string to_string(T value) {
+  if constexpr (is_flag_enum<T>) {
+    // for flag-likes we want to support `A | B` unless we got exact match
+    constexpr static auto enums = std::define_static_array(_serialize_impl::sorted_enum_pairs<T>());
+
+    auto remainder = std::to_underlying(value);
+    std::vector<std::string_view> partial;
+
+    for (auto [v, name] : enums) {
+      if (v == T(0)) {
+        if (remainder == 0) {
+          return name;
+        }
+      } else if ((remainder & v) == v) {
+        remainder &= ~v;
+        partial.push_back(name);
+        if (remainder == 0) {
+          break;
+        }
+      }
+    }
+
+    auto ret = std::string(std::from_range, partial | std::views::join_with('|'));
+    if (remainder != 0) {
+      if (not ret.empty()) {
+        ret += '|';
+      }
+      return ret + identifier_of(^^T) + '(' + to_string(remainder) + ')';
+    }
+    return ret;
+  } else {
+    // otherwise we can do better - try generating a switch instead
+    template for (constexpr auto E : $define_static_array(enumerators_of(^^T))) {
+      if (extract<T>(constant_of(E)) == value) {
+        // at least one enumerator was an exact match, print the first
+        return std::string{identifier_of(E)};
+      }
+    }
+    // still no match, print as cast using the functional notation
+    return std::string(identifier_of(^^T)) + "(" + to_string(std::to_underlying(value)) + ")";
+  }
+}
+
+}  // namespace rsl// ---- end: rsl/serialize ----
+
+
+
+namespace rsl {
+
+using rename = serializer::preferred_name<serializer::_impl::Annotated>;
+
+consteval bool is_renamed(std::meta::info item) {
+  return meta::has_annotation<serializer::preferred_name<serializer::_impl::Annotated>>(item);
+}
+
+struct GetterAnnotation {};
+constexpr inline GetterAnnotation getter{};
+
+consteval bool is_getter(std::meta::info R) {
+  return is_function(R) && rsl::meta::has_annotation<GetterAnnotation>(R);
+}
+
+
+}  // namespace rsl
