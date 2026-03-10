@@ -12,6 +12,13 @@ nav:
 
 ext:
   collector:
-    run:
-      - command: mrdocs
-      - command: python postprocess.py
+    - worktree:
+        keep: until:exit
+      run:
+        - command: mrdocs
+          dir: .
+        - command: python postprocess.py
+          dir: .
+      scan:
+        dir: modules
+        files: '**/*'
