@@ -1,0 +1,21 @@
+[#rsl-in_range-02]
+= xref:rsl.adoc[rsl]::in_range
+:relfileprefix: ../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/enum>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<
+    _impl::integer_type T,
+    _impl::integer_type U>
+constexpr
+bool
+in_range(U value) noexcept;
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

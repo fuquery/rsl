@@ -1,0 +1,17 @@
+[#rsl-meta-function]
+= xref:rsl.adoc[rsl]::xref:rsl/meta.adoc[meta]::function
+:relfileprefix: ../../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/meta_traits>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<std::meta::info R>
+concept function = is_function(R);
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

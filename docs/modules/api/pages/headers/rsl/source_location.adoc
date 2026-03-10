@@ -1,0 +1,13 @@
+= <rsl/source_location>
+
+
+== Functions
+
+* xref:rsl/current_class.adoc[`rsl::current_class`]
+* xref:rsl/current_function.adoc[`rsl::current_function`]
+* xref:rsl/current_namespace.adoc[`rsl::current_namespace`]
+* xref:rsl/current_scope.adoc[`rsl::current_scope`]
+
+== Types
+
+* xref:rsl/source_location.adoc[`rsl::source_location`]

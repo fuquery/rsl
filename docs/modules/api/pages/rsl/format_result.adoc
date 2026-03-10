@@ -1,0 +1,16 @@
+[#rsl-format_result]
+= xref:rsl.adoc[rsl]::format_result
+:relfileprefix: ../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/format>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+using format_result = _format_impl::FormatResult;
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

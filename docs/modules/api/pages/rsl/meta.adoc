@@ -1,0 +1,47 @@
+[#rsl-meta]
+= xref:rsl.adoc[rsl]::meta
+:relfileprefix: ../
+:mrdocs:
+
+== Functions
+
+[cols=1]
+|===
+| Name
+| xref:rsl/meta/get_annotation.adoc[`get_annotation`] 
+| xref:rsl/meta/get_annotations.adoc[`get_annotations`] 
+| xref:rsl/meta/get_member_by_name.adoc[`get_member_by_name`] 
+| xref:rsl/meta/has_annotation-0b.adoc[`has_annotation`] 
+| xref:rsl/meta/has_parent.adoc[`has_parent`] 
+| xref:rsl/meta/inject_aggregate.adoc[`inject_aggregate`] 
+| xref:rsl/meta/is_member_function.adoc[`is_member_function`] 
+| xref:rsl/meta/is_nonstatic_member_function.adoc[`is_nonstatic_member_function`] 
+| xref:rsl/meta/is_specialization.adoc[`is_specialization`] 
+| xref:rsl/meta/is_static_member_function.adoc[`is_static_member_function`] 
+|===
+
+== Concepts
+
+[cols=1]
+|===
+| Name
+| xref:rsl/meta/annotated_with.adoc[`annotated_with`] 
+| xref:rsl/meta/complete_type.adoc[`complete_type`] 
+| xref:rsl/meta/function.adoc[`function`] 
+| xref:rsl/meta/incomplete_type.adoc[`incomplete_type`] 
+| xref:rsl/meta/member_function.adoc[`member_function`] 
+| xref:rsl/meta/nonstatic_member_function.adoc[`nonstatic_member_function`] 
+| xref:rsl/meta/specializes.adoc[`specializes`] 
+| xref:rsl/meta/static_member_function.adoc[`static_member_function`] 
+|===
+
+== Using Declarations
+
+[cols=1]
+|===
+| Name
+| xref:rsl/meta/is_function.adoc[`is_function`] 
+|===
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

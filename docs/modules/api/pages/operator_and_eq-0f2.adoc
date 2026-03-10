@@ -1,0 +1,59 @@
+[#operator_and_eq-0f2]
+= operator&=
+:relfileprefix: 
+:mrdocs:
+
+Bitwise conjunction assignment operators
+
+== Synopses
+
+Declared in `<rsl/enum>`
+
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<xref:rsl/is_flag_enum.adoc[rsl::is_flag_enum] E>
+requires std::is_scoped_enum_v<E>
+constexpr
+E&
+xref:operator_and_eq-04.adoc[operator&=](
+    E& lhs,
+    E rhs) noexcept;
+----
+
+[.small]#xref:operator_and_eq-04.adoc[_» more..._]#
+
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<
+    xref:rsl/is_flag_enum.adoc[rsl::is_flag_enum] E,
+    std::convertible_to<std::underlying_type_t<E>> T>
+requires std::is_scoped_enum_v<E>
+constexpr
+E&
+xref:operator_and_eq-0fa.adoc[operator&=](
+    E& lhs,
+    T rhs) noexcept;
+----
+
+[.small]#xref:operator_and_eq-0fa.adoc[_» more..._]#
+
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<
+    xref:rsl/is_flag_enum.adoc[rsl::is_flag_enum] E,
+    std::convertible_to<std::underlying_type_t<E>> T>
+requires std::is_scoped_enum_v<E>
+constexpr
+T&
+xref:operator_and_eq-0f1.adoc[operator&=](
+    T& lhs,
+    E rhs) noexcept;
+----
+
+[.small]#xref:operator_and_eq-0f1.adoc[_» more..._]#
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

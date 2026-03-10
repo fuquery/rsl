@@ -1,0 +1,23 @@
+[#rsl-in_enum]
+= xref:rsl.adoc[rsl]::in_enum
+:relfileprefix: ../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/enum>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<
+    typename T,
+    typename V>
+requires std::is_enum_v<T> and
+           (std::same_as<V, T> or std::convertible_to<V, std::underlying_type_t<T>>)
+constexpr
+bool
+in_enum(V value);
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

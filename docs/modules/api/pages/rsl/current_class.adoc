@@ -1,0 +1,18 @@
+[#rsl-current_class]
+= xref:rsl.adoc[rsl]::current_class
+:relfileprefix: ../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/source_location>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+consteval
+std::meta::info
+current_class(std::meta::info scope = current_scope());
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

@@ -1,0 +1,19 @@
+[#rsl-specializes]
+= xref:rsl.adoc[rsl]::specializes
+:relfileprefix: ../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/meta_traits>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<
+    typename T,
+    std::meta::info Template>
+concept specializes = meta::specializes<^^T, Template>;
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

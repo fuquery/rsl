@@ -1,0 +1,20 @@
+[#rsl-println]
+= xref:rsl.adoc[rsl]::println
+:relfileprefix: ../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/print>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<typename... Args>
+void
+println(
+    xref:rsl/format_string.adoc[rsl::format_string<Args...>] fmt,
+    Args...&&... args);
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

@@ -1,0 +1,19 @@
+[#rsl-source_location-2constructor-0a]
+= xref:rsl.adoc[rsl]::xref:rsl/source_location.adoc[source_location]::source_location
+:relfileprefix: ../../
+:mrdocs:
+
+Default constructor
+
+== Synopsis
+
+Declared in `<rsl/source_location>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+consteval
+source_location() noexcept = default;
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

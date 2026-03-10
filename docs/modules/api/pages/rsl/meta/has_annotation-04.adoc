@@ -1,0 +1,20 @@
+[#rsl-meta-has_annotation-04]
+= xref:rsl.adoc[rsl]::xref:rsl/meta.adoc[meta]::has_annotation
+:relfileprefix: ../../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/meta>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+consteval
+bool
+has_annotation(
+    std::meta::info item,
+    std::meta::info type);
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

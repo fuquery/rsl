@@ -1,0 +1,20 @@
+[#rsl-source_location-2constructor-04]
+= xref:rsl.adoc[rsl]::xref:rsl/source_location.adoc[source_location]::source_location
+:relfileprefix: ../../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/source_location>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+consteval
+explicit(false)
+source_location(
+    std::source_location const& sloc,
+    std::meta::access_context ctx = std::meta::access_context::current());
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

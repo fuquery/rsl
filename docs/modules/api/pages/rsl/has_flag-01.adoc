@@ -1,0 +1,37 @@
+[#rsl-has_flag-01]
+= xref:rsl.adoc[rsl]::has_flag
+:relfileprefix: ../
+:mrdocs:
+
+== Synopses
+
+Declared in `<rsl/enum>`
+
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<xref:rsl/is_flag_enum.adoc[is_flag_enum] E>
+constexpr
+bool
+xref:rsl/has_flag-09.adoc[has_flag](
+    E flags,
+    E needle);
+----
+
+[.small]#xref:rsl/has_flag-09.adoc[_» more..._]#
+
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<xref:rsl/is_flag_enum.adoc[is_flag_enum] E>
+constexpr
+bool
+xref:rsl/has_flag-04.adoc[has_flag](
+    E flags,
+    std::underlying_type_t<E> needle);
+----
+
+[.small]#xref:rsl/has_flag-04.adoc[_» more..._]#
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

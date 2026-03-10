@@ -1,0 +1,49 @@
+[#operator_eq-0e]
+= operator==
+:relfileprefix: 
+:mrdocs:
+
+Equality operators
+
+== Synopses
+
+Declared in `<rsl/enum>`
+
+Equality operator
+
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<
+    xref:rsl/is_flag_enum.adoc[rsl::is_flag_enum] E,
+    std::convertible_to<std::underlying_type_t<E>> T>
+requires std::is_scoped_enum_v<E>
+constexpr
+bool
+xref:operator_eq-0b.adoc[operator==](
+    E lhs,
+    T rhs) noexcept;
+----
+
+[.small]#xref:operator_eq-0b.adoc[_» more..._]#
+
+Equality operator
+
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<
+    xref:rsl/is_flag_enum.adoc[rsl::is_flag_enum] E,
+    std::convertible_to<std::underlying_type_t<E>> T>
+requires std::is_scoped_enum_v<E>
+constexpr
+bool
+xref:operator_eq-01.adoc[operator==](
+    T lhs,
+    E rhs) noexcept;
+----
+
+[.small]#xref:operator_eq-01.adoc[_» more..._]#
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

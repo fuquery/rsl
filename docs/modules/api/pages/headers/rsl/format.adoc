@@ -1,0 +1,11 @@
+= <rsl/format>
+
+
+== Functions
+
+* xref:rsl/format.adoc[`rsl::format`]
+
+== Types
+
+* xref:rsl/format_result.adoc[`rsl::format_result`]
+* xref:rsl/format_string.adoc[`rsl::format_string`]

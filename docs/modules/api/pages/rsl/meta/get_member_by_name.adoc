@@ -1,0 +1,20 @@
+[#rsl-meta-get_member_by_name]
+= xref:rsl.adoc[rsl]::xref:rsl/meta.adoc[meta]::get_member_by_name
+:relfileprefix: ../../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/meta>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+consteval
+std::meta::info
+get_member_by_name(
+    std::meta::info r,
+    std::string_view name);
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

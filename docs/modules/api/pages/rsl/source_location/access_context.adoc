@@ -1,0 +1,19 @@
+[#rsl-source_location-access_context]
+= xref:rsl.adoc[rsl]::xref:rsl/source_location.adoc[source_location]::access_context
+:relfileprefix: ../../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/source_location>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+[[nodiscard]]
+consteval
+std::meta::access_context
+access_context() const noexcept;
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#

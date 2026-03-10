@@ -1,0 +1,17 @@
+[#rsl-is_fixed_enum]
+= xref:rsl.adoc[rsl]::is_fixed_enum
+:relfileprefix: ../
+:mrdocs:
+
+== Synopsis
+
+Declared in `<rsl/enum>`
+
+[source,cpp,subs="verbatim,replacements,macros,-callouts"]
+----
+template<typename T>
+concept is_fixed_enum = std::is_enum_v<T> and requires { T{0}; };
+----
+
+
+[.small]#Created with https://www.mrdocs.com[MrDocs]#
