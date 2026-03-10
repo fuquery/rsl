@@ -12,7 +12,7 @@ ext:
         - command: python postprocess.py
           dir: .
       scan:
-        dir: modules/api
+        dir: .
         files: '**/*'
         ignore: []
 nav:
