@@ -1,6 +1,15 @@
 name: rsl
 version: ~
 title: rsl
+
+ext:
+  collector:
+    - worktree:
+        keep: until:exit
+      run:
+        - command: mrdocs
+        - command: python postprocess.py
+
 nav:
 - modules/ROOT/nav.adoc
 - modules/annotation/nav.adoc
@@ -10,15 +19,3 @@ nav:
 - modules/utilities/nav.adoc
 
 
-ext:
-  collector:
-    - worktree:
-        keep: until:exit
-      run:
-        - command: mrdocs
-          dir: .
-        - command: python postprocess.py
-          dir: .
-      scan:
-        dir: modules
-        files: '**/*'
