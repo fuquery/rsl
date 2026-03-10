@@ -1,0 +1,70 @@
+#pragma once
+#include <rsl/serialize>
+#include <string>
+
+#include <meta>
+
+#include <rsl/constant_wrapper>
+#include <rsl/serializer/repr.hpp>
+#include <rsl/_impl/_config.h>
+
+namespace rsl {
+using repr_options = serializer::Options;
+
+template <typename T>
+constexpr std::string repr(T&& value, repr_options opts = {}) {
+  auto visitor = rsl::serializer::ReprVisitor{opts};
+  rsl::serialize(visitor, std::forward<T>(value));
+  return visitor.finalize();
+}
+
+template <auto V>
+struct constant_t {
+  constexpr static auto value = V;
+};
+
+template <auto V>
+constexpr constant_t<V> constant{};
+
+template <auto V>
+constexpr std::string repr(constant_t<V>, repr_options opts = {}) {
+  return rsl::repr(V, opts);
+}
+
+template <typename T, repr_options Opts>
+constexpr std::string repr(T&& value, constant_t<Opts> = {}) {
+  return rsl::repr(std::forward<T>(value), Opts);
+}
+
+template <auto V, repr_options Opts>
+constexpr std::string repr(constant_t<V>, constant_t<Opts> = {}) {
+  return rsl::repr(V, Opts);
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& stream, std::string (*)(T&&, repr_options)) {
+  return stream << std::string_view(define_static_string(display_string_of(remove_cvref(^^T))));
+}
+
+template <typename T, repr_options Opts>
+std::ostream& operator<<(std::ostream& stream, std::string (*)(T&&, constant_t<Opts>)) {
+  return stream << std::string_view(define_static_string(display_string_of(remove_cvref(^^T))));
+}
+
+template <auto V>
+std::ostream& operator<<(std::ostream& stream,
+                         std::string (*fnc)(constant_t<V>, repr_options)) {
+  return stream << fnc(constant<V>, {});
+}
+
+template <auto V, repr_options Opts>
+std::ostream& operator<<(std::ostream& stream,
+                         std::string (*fnc)(constant_t<V>,
+                                            constant_t<Opts>)) {
+  return stream << fnc(constant<V>, {});
+}
+}  // namespace rsl
+
+#if $uses_opt(RSL_GLOBAL_REPR)
+using rsl::repr;
+#endif

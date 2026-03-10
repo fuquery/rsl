@@ -1,0 +1,12 @@
+source-root: api
+output: build
+
+multipage: true
+addons: addons
+generator: adoc
+ignore-failures: true
+ignore-map-errors: true
+system-includes: ["api"]
+exclude-symbols:
+  - '**_impl*'
+  - 'std::*'

@@ -3,26 +3,28 @@
 #include <string_view>
 #include <utility>
 
-#include "_impl/format/fmt_parser.hpp"
-#include "_impl/format/style.hpp"
-
 namespace rsl {
 namespace _format_impl {
+
+struct FormatResult;
+
+struct FormatString { 
+  template <typename... Args>
+  using format_type = FormatResult(*)(Args...);
+};
+
+
 template <typename... Args>
 struct Fmt {
   FormatString::format_type<Args...> do_format;
 
   template <typename T>
     requires std::convertible_to<T const&, std::string_view>
-  consteval explicit(false) Fmt(T const& fmt) {
-    auto parser = FormatParser(fmt);
-    parser.do_parse({^^Args...});
-    do_format = parser.result.get_format<Args...>();
-  }
+  consteval explicit(false) Fmt(T const& fmt);
 };
 }  // namespace _format_impl
 
-using style_map = _format_impl::StyleMap;
+// using style_map = _format_impl::StyleMap;
 
 using format_result = _format_impl::FormatResult;
 
@@ -30,7 +32,5 @@ template <typename... Args>
 using format_string = _format_impl::Fmt<std::type_identity_t<Args>...>;
 
 template <typename... Args>
-format_result format(format_string<Args...> fmt, Args&&... args) {
-  return fmt.do_format(std::forward<Args>(args)...);
-}
+format_result format(format_string<Args...> fmt, Args&&... args);
 }  // namespace rsl

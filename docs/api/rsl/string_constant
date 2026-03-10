@@ -1,0 +1,29 @@
+#pragma once
+#include <cstddef>
+#include <string_view>
+#include <algorithm>
+
+namespace rsl {
+template <std::size_t N>
+struct string_constant {
+  constexpr static auto size = N;
+  char data[N + 1]{};
+
+  consteval string_constant() = default;
+  consteval explicit(false) string_constant(const char (&str)[N + 1]) noexcept {
+    std::ranges::copy(str, str + N, data);
+  }
+
+  consteval explicit string_constant(std::same_as<char> auto... Vs)
+    requires(sizeof...(Vs) <= N)
+      : data{Vs...} {}
+
+  consteval explicit string_constant(std::string_view str) {
+    str.copy(data, std::min(str.size(), N));
+  }
+  constexpr explicit(false) operator std::string_view() const { return std::string_view{data}; }
+};
+
+template <std::size_t N>
+string_constant(char const (&)[N]) -> string_constant<N - 1>;
+}  // namespace rsl

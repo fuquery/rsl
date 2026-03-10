@@ -1,0 +1,11 @@
+name: rsl
+version: ~
+title: rsl
+nav:
+- modules/ROOT/nav.adoc
+- modules/annotation/nav.adoc
+- modules/collections/nav.adoc
+- modules/platform/nav.adoc
+- modules/serialization/nav.adoc
+- modules/utilities/nav.adoc
+- modules/api/nav.adoc

@@ -1,0 +1,76 @@
+#pragma once
+#include <meta>
+#include <vector>
+#include <ranges>
+#include <type_traits>
+
+namespace rsl {
+
+template <auto... Vs>
+struct constant_sequence {
+  static constexpr size_t size() noexcept { return sizeof...(Vs); }
+};
+
+template <auto... Vs>
+constexpr auto seq = constant_sequence<Vs...>();
+
+template <typename T, T... Is>
+struct integer_sequence : constant_sequence<Is...> {
+  static_assert(std::is_integral_v<T>,
+                "integer_sequence must be sequences of integers");  // [intseq.intseq]/1
+
+  using value_type = T;
+};
+
+template <size_t... Is>
+using index_sequence = integer_sequence<size_t, Is...>;
+
+namespace _intseq_impl {
+template <typename T>
+consteval std::meta::info make_intseq(T count) {
+  auto args = std::vector{^^T};
+  for (T idx = 0; idx < count; ++idx) {
+    args.push_back(std::meta::reflect_constant(idx));
+  }
+  return substitute(^^integer_sequence, args);
+}
+}  // namespace _intseq_impl
+
+template <typename T, T N>
+using make_integer_sequence = [:_intseq_impl::make_intseq(N):];
+
+template <std::size_t N>
+using make_index_sequence = make_integer_sequence<std::size_t, N>;
+
+template <typename... T>
+using index_sequence_for = make_index_sequence<sizeof...(T)>;
+
+template <std::size_t Idx, auto... Vs>
+  requires(Idx < sizeof...(Vs))
+constexpr auto get(constant_sequence<Vs...>) noexcept {
+  return Vs...[Idx];
+}
+
+template <std::size_t N>
+constexpr auto const&& intseq = [:std::meta::reflect_constant_array(std::views::iota(0ZU, N)):];
+}  // namespace rsl
+
+template <auto... Vs>
+struct std::tuple_size<rsl::constant_sequence<Vs...>>
+    : std::integral_constant<std::size_t, sizeof...(Vs)> {};
+
+template <std::size_t Idx, auto... Vs>
+  requires(Idx < sizeof...(Vs))
+struct std::tuple_element<Idx, rsl::constant_sequence<Vs...>> {
+  using type = decltype(Vs...[Idx]);
+};
+
+template <typename T, T... Is>
+struct std::tuple_size<rsl::integer_sequence<T, Is...>>
+    : std::integral_constant<std::size_t, sizeof...(Is)> {};
+
+template <std::size_t Idx, typename T, T... Is>
+  requires(Idx < sizeof...(Is))
+struct std::tuple_element<Idx, rsl::integer_sequence<T, Is...>> {
+  using type = T;
+};

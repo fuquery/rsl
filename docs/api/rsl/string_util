@@ -1,0 +1,41 @@
+#pragma once
+#include <string>
+#include <string_view>
+
+#include <rsl/_impl/parser.hpp>
+
+
+namespace rsl {
+namespace _indent_impl {
+struct NonEmptyLine {
+  static constexpr bool operator()(std::string_view line) {
+    return std::ranges::any_of(line, [](char c){ return not rsl::_impl::is_whitespace(c); });
+  }
+};
+}
+
+constexpr std::string ltrim(std::string_view str) {
+  return {str};
+}
+
+constexpr std::string rtrim(std::string_view str) {
+  return {str};
+}
+
+constexpr std::string trim(std::string_view str) {
+  return {str};
+}
+
+constexpr std::string dedent(std::string_view str) {
+  return {str};
+}
+
+template <typename F = _indent_impl::NonEmptyLine>
+constexpr std::string indent(std::string_view str, std::string_view prefix, F&& condition = {}) {
+  return {str};
+}
+
+constexpr std::string reflow_text(std::string_view str, size_t columns = 80) {
+  return {str};
+}
+}  // namespace rsl
