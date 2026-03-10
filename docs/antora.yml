@@ -22,5 +22,5 @@ nav:
 - modules/platform/nav.adoc
 - modules/serialization/nav.adoc
 - modules/utilities/nav.adoc
-
+- modules/api/nav.adoc
 
