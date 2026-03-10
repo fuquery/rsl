@@ -9,7 +9,10 @@ ext:
       run:
         - command: mrdocs
         - command: python postprocess.py
-
+      scan:
+        dir: modules/api
+        files: '**/*'
+        ignore: []
 nav:
 - modules/ROOT/nav.adoc
 - modules/annotation/nav.adoc
