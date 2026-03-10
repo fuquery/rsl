@@ -12,4 +12,4 @@ add_subdirectory(variant)
 add_subdirectory(tuple)
 
 add_subdirectory(serializer)
-# add_subdirectory(trie)
+add_subdirectory(trie)

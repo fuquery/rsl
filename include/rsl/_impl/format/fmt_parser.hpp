@@ -19,11 +19,11 @@
 namespace rsl::_format_impl {
 
 struct FormatResult {
-  using join_t = std::string (FormatResult::*)(StyleMap const*) const;
-  join_t join;
+  using join_t = std::string (*)(StyleMap const*);
+  join_t join = nullptr;
 
   template <auto... Args>
-  std::string join_impl(StyleMap const* style_map) const {
+  static std::string join_impl(std::string_view raw, StyleMap const* style_map) {
     static constexpr Style::Tag style_tags[] = {Args...};
 
     std::string result;
@@ -39,23 +39,31 @@ struct FormatResult {
     return result;
   }
 
+  template <auto... Args>
+  constexpr static auto join_impl_ptr = &join_impl<Args...>;
+
   FormatResult(std::string result, join_t joiner) : raw(std::move(result)), join(joiner) {}
 
   std::string raw;
   [[nodiscard]] std::string with_style(StyleMap const& style) const {
-    return (this->*join)(&style);
+    return join(&style);
   }
-  [[nodiscard]] std::string unstyled() const { return (this->*join)(nullptr); }
+  [[nodiscard]] std::string unstyled() const { return join(nullptr); }
   [[nodiscard]] constexpr explicit(false) operator std::string() const { return unstyled(); }
 };
 
-template <rsl::string_view fmt, typename Accessors, std::meta::info Joiner, typename... Args>
+
+
+template <rsl::string_view fmt, typename Accessors, /*auto Joiner,*/ typename... Args>
 FormatResult format_impl(Args&&... args) {
   auto str = [&]<typename... Xs>(AccessorList<Xs...>) {
     return std::format(fmt.data(), Xs::get(std::forward<Args...[Xs::index]>(args...[Xs::index]))...);
   }(Accessors{});
-  return FormatResult(str, extract<FormatResult::join_t>(Joiner));
+  return FormatResult(str, nullptr /*extract<FormatResult::join_t>(Joiner)*/);
 }
+
+template <rsl::string_view fmt, typename Accessors, std::meta::info Joiner, typename... Args>
+constexpr auto format_impl_ptr = &format_impl<fmt, Accessors, /*Joiner,*/ Args...>;
 
 struct FormatString {
   std::string string;
@@ -75,10 +83,10 @@ struct FormatString {
     for (auto const& style : style_tags) {
       join_args.emplace_back(style);
     }
-    args.push_back(reflect_constant(substitute(^^FormatResult::join_impl, join_args)));
+    args.push_back(std::meta::reflect_constant(substitute(^^FormatResult::join_impl_ptr, join_args)));
 
     (args.push_back(^^Args), ...);
-    return extract<format_type<Args...>>(substitute(^^format_impl, args));
+    return extract<format_type<Args...>>(substitute(^^format_impl_ptr, args));
   }
 };
 

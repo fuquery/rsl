@@ -3,6 +3,7 @@
 
 #if $os_is(LINUX)
 #  include <unistd.h>
+#  include <sys/ioctl.h>
 #elif $os_is(WINDOWS)
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
@@ -28,6 +29,28 @@ inline bool isatty(int fd) {
   return bool(::_isatty(fd));
 #else
 #  error "Unsupported platform"
+#endif
+}
+
+struct TerminalDimensions {
+  int rows;
+  int columns;
+};
+
+inline TerminalDimensions get_terminal_dimensions() {
+  if (not isatty(STDOUT_FILENO)) {
+    return {-1, -1};
+  }
+#if $os_is(LINUX)
+  struct winsize buffer;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &buffer);
+  return {.rows = buffer.ws_row, .columns = buffer.ws_col};
+#elif $os_is(WINDOWS)
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+  return {.rows    = csbi.srWindow.Bottom - csbi.srWindow.Top + 1,
+          .columns = csbi.srWindow.Right - csbi.srWindow.Left + 1};
 #endif
 }
 
