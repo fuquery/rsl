@@ -7,7 +7,7 @@ ext:
     - worktree:
         keep: until:exit
       run:
-        - command: mrdocs
+        - command: mrdocs .
         - command: python postprocess.py
       scan:
         dir: modules/api
