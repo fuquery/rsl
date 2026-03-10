@@ -173,7 +173,7 @@ def _copy_and_patch_to_output(src_path: Path, base_dir: Path, output_root: Path)
     
     new_txt = src_txt.replace("&period;h&gt;", "&gt;")
     new_txt = _replace_macros_in_text(new_txt)
-    new_txt = html.unescape(new_txt)
+    # new_txt = html.unescape(new_txt)
 
     dst.write_text(new_txt, encoding="utf-8")
     return dst
