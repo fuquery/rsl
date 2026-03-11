@@ -512,3 +512,4 @@ namespace _impl_invalid {
 
 #define $lift(x) std::meta::info()->*_do_lift<x>
 #define $splice(x) decltype(_impl_invalid::T(x))
+#define $vsplice(x) _impl_invalid::V(x)
