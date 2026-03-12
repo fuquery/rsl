@@ -1,2 +1,30 @@
-= rsl
+= **R**eflection **S**upport **L**ibrary
 
+This project contains reimplementations of various standard library facilities 
+and other utilities to assist with reflective code.
+
+This includes reimplementations of various containers as structural types,
+several useful reflective queries, reusable annotations, experimental additions
+to existing facilities and general infrastructure commonly needed in reflective,
+metaprogramming-heavy codebases.
+
+The rsl project is released under the 0-BSD license.
+
+[WARNING]
+====
+This documentation is very incomplete and might be partially broken. 
+
+Currently it is generated from a mocked API using https://mrdocs.com/[Mr.Docs], 
+which does not yet directly support reflective code as input.
+
+This means we need to do a fair bit of postprocessing and cannot use the raw
+sources as input directly just yet.
+====
+
+Here's an overview:
+
+include::annotation:index.adoc[]
+include::collections:index.adoc[]
+include::platform:index.adoc[]
+include::serialization:index.adoc[]
+include::utilities:index.adoc[]
