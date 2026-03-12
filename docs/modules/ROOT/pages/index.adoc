@@ -23,8 +23,12 @@ sources as input directly just yet.
 
 Here's an overview:
 
+:leveloffset: +1
+
 include::annotation:index.adoc[]
 include::collections:index.adoc[]
 include::platform:index.adoc[]
 include::serialization:index.adoc[]
 include::utilities:index.adoc[]
+
+:leveloffset: -1
