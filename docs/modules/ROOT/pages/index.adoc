@@ -10,6 +10,7 @@ metaprogramming-heavy codebases.
 
 The rsl project is released under the 0-BSD license.
 
+ifndef::brief[]
 [WARNING]
 ====
 This documentation is very incomplete and might be partially broken. 
@@ -32,3 +33,5 @@ include::serialization:index.adoc[]
 include::utilities:index.adoc[]
 
 :leveloffset: -1
+
+endif::brief[]
