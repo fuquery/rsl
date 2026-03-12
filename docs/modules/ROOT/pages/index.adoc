@@ -1,16 +1,7 @@
 = **R**eflection **S**upport **L**ibrary
 
-This project contains reimplementations of various standard library facilities 
-and other utilities to assist with reflective code.
+include::brief.adoc[]
 
-This includes reimplementations of various containers as structural types,
-several useful reflective queries, reusable annotations, experimental additions
-to existing facilities and general infrastructure commonly needed in reflective,
-metaprogramming-heavy codebases.
-
-The rsl project is released under the 0-BSD license.
-
-ifndef::brief[]
 [WARNING]
 ====
 This documentation is very incomplete and might be partially broken. 
@@ -33,5 +24,3 @@ include::serialization:index.adoc[]
 include::utilities:index.adoc[]
 
 :leveloffset: -1
-
-endif::brief[]

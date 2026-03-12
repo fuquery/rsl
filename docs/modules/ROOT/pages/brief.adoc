@@ -1,0 +1,9 @@
+This project contains reimplementations of various standard library facilities 
+and other utilities to assist with reflective code.
+
+This includes reimplementations of various containers as structural types,
+several useful reflective queries, reusable annotations, experimental additions
+to existing facilities and general infrastructure commonly needed in reflective,
+metaprogramming-heavy codebases.
+
+The rsl project is released under the 0-BSD license.
