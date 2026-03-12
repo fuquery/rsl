@@ -1,6 +1,6 @@
 name: rsl
 version: ~
-title: rsl
+title: Reflective Support Library
 
 ext:
   collector:
