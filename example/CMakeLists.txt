@@ -12,3 +12,6 @@ DEFINE_EXAMPLE(format)
 #   review_tu2.cpp
 # )
 # target_link_libraries(example_review PRIVATE rsl_util)
+#
+
+add_subdirectory(inject)
