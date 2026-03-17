@@ -1,0 +1,1 @@
+This is the target folder for automatically generated API documentation. Do not check in anything from this folder.
