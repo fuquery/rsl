@@ -81,8 +81,26 @@ consteval std::vector<std::meta::info> get_annotations(std::meta::info item, std
   return annotations;
 }
 
+template <typename T>
+consteval std::vector<T> get_annotations(std::meta::info item) {
+  std::vector<T> annotations;
+  for (auto annotation : _compat::annotations_of_with_type(item, ^^T)) {
+    annotations.push_back(extract<T>(constant_of(annotation)));
+  }
+  return annotations;
+}
+
 consteval std::optional<std::meta::info> get_annotation(std::meta::info item, std::meta::info type) {
   auto annotations = get_annotations(item, type);
+  if (annotations.empty()) {
+    return std::nullopt;
+  }
+  return annotations[0];
+}
+
+template <typename T>
+consteval std::optional<T> get_annotation(std::meta::info item) {
+  auto annotations = get_annotations<T>(item);
   if (annotations.empty()) {
     return std::nullopt;
   }
