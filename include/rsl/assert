@@ -32,7 +32,7 @@ constexpr std::string format_sloc(std::source_location sloc) {
 
 template <typename T>
   requires std::convertible_to<T const&, std::string_view>
-consteval void compile_error(T const& message) {
+consteval void compile_error(T const& message, std::source_location sloc = std::source_location::current()) {
   auto diagnostic = '\n' + _error_impl::format_sloc(sloc) + ": error: " + message;
   auto compile_error =
       substitute(^^_error_impl::error, {std::meta::reflect_constant_string(diagnostic)});
