@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <optional>
 #include <meta>
 #include <ranges>
 
@@ -80,8 +81,12 @@ consteval std::vector<std::meta::info> get_annotations(std::meta::info item, std
   return annotations;
 }
 
-consteval std::meta::info get_annotation(std::meta::info item, std::meta::info type) {
-  return get_annotations(item, type)[0];
+consteval std::optional<std::meta::info> get_annotation(std::meta::info item, std::meta::info type) {
+  auto annotations = get_annotations(item, type);
+  if (annotations.empty()) {
+    return std::nullopt;
+  }
+  return annotations[0];
 }
 
 consteval bool has_parent(std::meta::info R) {
