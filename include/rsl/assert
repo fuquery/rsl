@@ -17,10 +17,12 @@
 
 namespace rsl {
 namespace _error_impl {
-template <char const* message>
-consteval void error() {
-  static_assert(false, std::string_view{message});
-}
+template <char const* V>
+struct error {
+  constexpr static auto cond    = V == nullptr;
+  constexpr static auto message = std::string_view(V);
+  static_assert(cond, message);
+};
 
 constexpr std::string format_sloc(std::source_location sloc) {
   return std::string(sloc.file_name()) + ":" + to_string(sloc.line()) + ":" +
@@ -28,11 +30,13 @@ constexpr std::string format_sloc(std::source_location sloc) {
 }
 }  // namespace _error_impl
 
-consteval void compile_error(std::string_view message,
-                             std::source_location sloc = std::source_location::current()) {
+template <typename T>
+  requires std::convertible_to<T const&, std::string_view>
+consteval void compile_error(T const& message) {
   auto diagnostic = '\n' + _error_impl::format_sloc(sloc) + ": error: " + message;
-  extract<void (*)()>(
-      substitute(^^_error_impl::error, {std::meta::reflect_constant_string(diagnostic)}))();
+  auto compile_error =
+      substitute(^^_error_impl::error, {std::meta::reflect_constant_string(diagnostic)});
+  (void)is_complete_type(compile_error);  // force instantiation
 }
 
 namespace _assert_impl {
