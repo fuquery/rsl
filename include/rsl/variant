@@ -845,18 +845,7 @@ struct variant_alternative<Idx, variant<Ts...> const> {
 namespace _impl {
 template <typename T>
 concept is_enum = std::is_scoped_enum_v<T> || std::is_enum_v<T>;
-
-template <typename T>
-struct TypeTag {
-  using type = T;
-};
-
-template <typename T>
-using unwrap_type_tag = typename T::type;
 }  // namespace _impl
-
-template <typename T>
-constexpr inline _impl::TypeTag<T> type{};
 
 namespace _tagged_variant_impl {
 template <_impl::is_enum T>
@@ -895,9 +884,11 @@ struct Storage {
 
     for (auto enumerator : enumerators_of(^^E)) {
       auto annotations     = annotations_of(enumerator);
-      auto annotation_type = type_of(annotations[0]);
-      auto alt_type        = dealias(substitute(^^_impl::unwrap_type_tag, {annotation_type}));
-      members.push_back(data_member_spec(alt_type, {.name = identifier_of(enumerator)}));
+      // if (type_of(annotations[0]) != ^^std::meta::info || !is_type(annotations[0])) {
+      //   // fail in some way or find another annotation
+      // }
+      auto annotation_type = extract<std::meta::info>(constant_of(annotations[0]));
+      members.push_back(data_member_spec(annotation_type, {.name = identifier_of(enumerator)}));
     }
     define_aggregate(^^type, members);
   };

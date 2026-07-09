@@ -19,9 +19,9 @@ Additionally `rsl::string_view` provides an implicit conversion operator to `std
 `rsl::tagged_variant` allows generating variants from annotated enums. Consider the following example:
 ```cpp
 enum class Foo {
-  foo [[=type<int>]],
-  bar [[=type<bool>]] = 10,
-  baz [[=type<char>]] = 20
+  foo [[=^^int]],
+  bar [[=^^bool]] = 10,
+  baz [[=^^char]] = 20
 };
 
 int main() {

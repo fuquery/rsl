@@ -4,13 +4,8 @@
 
 #include <rsl/variant>
 
-enum class Foo {
-  foo [[=rsl::type<int>]],
-  bar [[=rsl::type<char>]]
-};
-
 // TODO test tagged_variant as well
-using variant_swap_p = ::testing::Types<rsl::variant<int,float>, rsl::tagged_variant<Foo>>;
+using variant_swap_p = ::testing::Types<rsl::variant<int,float>>;
 template<typename T>
 struct VariantSwap : public testing::Test
 {

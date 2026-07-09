@@ -6,15 +6,15 @@
 #include "common/assertions.h"
 
 enum class ScopedEnum {
-  INT[[= rsl::type<int>]],
-  CHAR[[= rsl::type<char>]],
-  BOOL[[= rsl::type<bool>]]
+  INT[[=^^int]],
+  CHAR[[=^^char]],
+  BOOL[[=^^bool]]
 };
 
 enum UnscopedEnum {  //
-  INT[[= rsl::type<int>]],
-  CHAR[[= rsl::type<char>]],
-  BOOL[[= rsl::type<bool>]]
+  INT[[=^^int]],
+  CHAR[[=^^char]],
+  BOOL[[=^^bool]]
 };
 
 TEST(TaggedVariant, GetTag) {
