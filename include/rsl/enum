@@ -4,10 +4,10 @@
 #include <type_traits>
 #include <utility>
 #include <rsl/meta>
-#include <rsl/_impl/_config.h>
+#include <rsl/_rsl_impl/_config.h>
 
 
-#include <rsl/_impl/traits.hpp>
+#include <rsl/_rsl_impl/traits.hpp>
 
 namespace rsl {
 inline namespace annotations {

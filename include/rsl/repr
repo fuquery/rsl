@@ -5,7 +5,7 @@
 #include <meta>
 
 #include <rsl/serializer/repr.hpp>
-#include <rsl/_impl/_config.h>
+#include <rsl/_rsl_impl/_config.h>
 
 namespace rsl {
 using repr_options = serializer::Options;

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <rsl/variant>
-#include <rsl/_impl/traits.hpp>
+#include <rsl/_rsl_impl/traits.hpp>
 
 #include <common/assertions.h>
 

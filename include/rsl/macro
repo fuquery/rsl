@@ -1,11 +1,11 @@
 #pragma once
-#include <rsl/_impl/macro/attributes.hpp>
-#include <rsl/_impl/macro/compiler.hpp>
-#include <rsl/_impl/macro/opt.hpp>
-#include <rsl/_impl/macro/os.hpp>
-#include <rsl/_impl/macro/compat.hpp>
-#include <rsl/_impl/macro/loop.hpp>
-#include <rsl/_impl/macro/diagnostic.hpp>
+#include <rsl/_rsl_impl/macro/attributes.hpp>
+#include <rsl/_rsl_impl/macro/compiler.hpp>
+#include <rsl/_rsl_impl/macro/opt.hpp>
+#include <rsl/_rsl_impl/macro/os.hpp>
+#include <rsl/_rsl_impl/macro/compat.hpp>
+#include <rsl/_rsl_impl/macro/loop.hpp>
+#include <rsl/_rsl_impl/macro/diagnostic.hpp>
 
 // compile environment checks
 

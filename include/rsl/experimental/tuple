@@ -10,9 +10,9 @@
 #include <rsl/serialize>
 #include <rsl/constant_sequence>
 
-#include <rsl/_impl/index_of.hpp>
-#include <rsl/_impl/member_cache.hpp>
-#include <rsl/_impl/_config.h>
+#include <rsl/_rsl_impl/index_of.hpp>
+#include <rsl/_rsl_impl/member_cache.hpp>
+#include <rsl/_rsl_impl/_config.h>
 
 #if $uses_opt(RSL_STD_COMPAT)
 #  include <tuple>

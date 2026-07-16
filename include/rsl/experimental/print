@@ -2,9 +2,9 @@
 #include <cstdio>
 
 #include <rsl/experimental/format>
-#include <rsl/style/terminal.hpp>
+#include <rsl/experimental/style/terminal.hpp>
 
-#include <rsl/_impl/platform/io.hpp>
+#include <rsl/_rsl_impl/platform/io.hpp>
 
 namespace rsl {
 using rsl::_impl_platform::isatty;

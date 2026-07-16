@@ -13,7 +13,7 @@
 
 #include <meta>
 
-#include <rsl/_impl/wrap_iter.hpp>
+#include <rsl/_rsl_impl/wrap_iter.hpp>
 
 namespace rsl {
 inline constexpr std::size_t dynamic_extent = std::numeric_limits<std::size_t>::max();

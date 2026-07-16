@@ -5,9 +5,9 @@
 
 #include <rsl/macro>
 #include <rsl/enum>  // for to_string(enum-type)
-#include <rsl/_impl/serialize/operators.hpp>
-#include <rsl/_impl/serialize/to_string.hpp>
-#include <rsl/_impl/serialize/enum.hpp>
+#include <rsl/_rsl_impl/serialize/operators.hpp>
+#include <rsl/_rsl_impl/serialize/to_string.hpp>
+#include <rsl/_rsl_impl/serialize/enum.hpp>
 #include <rsl/serializer/repr.hpp>
 
 #include "serializer/machinery.hpp"

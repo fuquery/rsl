@@ -1,7 +1,7 @@
 #pragma once
 #include <meta>
 #include <string>
-#include <rsl/_impl/hash.hpp>
+#include <rsl/_rsl_impl/hash.hpp>
 
 namespace rsl::_serialize_impl {
 constexpr std::string op_to_string(std::meta::operators op) {

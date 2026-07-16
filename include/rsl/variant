@@ -11,9 +11,9 @@
 
 #include <rsl/serialize>
 
-#include <rsl/_impl/traits.hpp>
-#include <rsl/_impl/member_cache.hpp>
-#include <rsl/_impl/index_of.hpp>
+#include <rsl/_rsl_impl/traits.hpp>
+#include <rsl/_rsl_impl/member_cache.hpp>
+#include <rsl/_rsl_impl/index_of.hpp>
 
 #include <rsl/macro>
 

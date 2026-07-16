@@ -12,7 +12,7 @@
 #include <rsl/serialize>
 #include <rsl/experimental/expect>
 
-#include <rsl/_impl/_config.h>
+#include <rsl/_rsl_impl/_config.h>
 
 namespace rsl {
 namespace _error_impl {

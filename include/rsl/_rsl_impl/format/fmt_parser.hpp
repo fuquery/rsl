@@ -10,7 +10,7 @@
 #include <rsl/span>
 #include <rsl/serialize>
 
-#include <rsl/_impl/parser.hpp>
+#include <rsl/_rsl_impl/parser.hpp>
 
 #include "accessor.hpp"
 #include "style.hpp"
