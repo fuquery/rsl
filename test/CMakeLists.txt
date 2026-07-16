@@ -1,15 +1,11 @@
 target_sources(rsl-util-test PRIVATE main.cpp)
 target_include_directories(rsl-util-test PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
+add_subdirectory(experimental)
+
 add_subdirectory(enum)
 add_subdirectory(string_view)
 add_subdirectory(span)
-add_subdirectory(format)
-add_subdirectory(expect)
 add_subdirectory(kwargs)
 add_subdirectory(tagged_variant)
 add_subdirectory(variant)
-add_subdirectory(tuple)
-
-add_subdirectory(serializer)
-add_subdirectory(trie)

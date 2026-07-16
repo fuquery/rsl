@@ -8,7 +8,7 @@
 #include <ranges>
 #include <cstddef>
 
-#include <rsl/string_constant>
+#include <rsl/experimental/string_constant>
 #include <rsl/meta>
 
 #include <rsl/_impl/parser.hpp>

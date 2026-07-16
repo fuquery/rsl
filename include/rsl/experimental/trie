@@ -9,7 +9,7 @@
 #include <iterator>
 #include <meta>
 
-#include <rsl/string_constant>
+#include <rsl/experimental/string_constant>
 #include <rsl/string_view>
 #include <rsl/span>
 #include <rsl/assert>

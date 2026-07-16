@@ -4,7 +4,6 @@
 
 #include <meta>
 
-#include <rsl/constant_wrapper>
 #include <rsl/serializer/repr.hpp>
 #include <rsl/_impl/_config.h>
 

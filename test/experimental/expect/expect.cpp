@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <common/assertions.h>
 
-#include <rsl/expect>
+#include <rsl/experimental/expect>
 
 namespace {
 TEST(Expect, Logic) {

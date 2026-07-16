@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
 
-#include <rsl/format>
+#include <rsl/experimental/format>
 #include <rsl/style/terminal.hpp>
 
 #include <rsl/_impl/platform/io.hpp>

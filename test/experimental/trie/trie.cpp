@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
-#include <rsl/trie>
+#include <rsl/experimental/trie>
 
 
 TEST(Trie, Matches) {

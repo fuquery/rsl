@@ -1,7 +1,6 @@
 #pragma once
 #include <iterator>
 #include <meta>
-#include <ranges>
 #include <source_location>
 #include <string>
 #include <string_view>
@@ -9,9 +8,9 @@
 #include <cstdio>
 
 #include <rsl/source_location>
-#include <rsl/expect>
 #include <rsl/string_view>
 #include <rsl/serialize>
+#include <rsl/experimental/expect>
 
 #include <rsl/_impl/_config.h>
 
@@ -82,59 +81,13 @@ constexpr void assert_violation(std::source_location sloc,
   }
 }
 
-#if $uses_opt(RSL_ENABLE_REVIEW)
-
-inline std::vector<std::string>& observations() {
-  static std::vector<std::string> value;
-  return value;
-}
-
-template <unsigned Count>
-struct ObservedFailure {
-  friend auto get_message(ObservedFailure);
-};
-
-template <auto Tag = [] {}, unsigned Idx = 0>
-consteval unsigned count_observed() {
-  if constexpr (requires(ObservedFailure<Idx> r) { get_message(r); }) {
-    return count_observed<Tag, Idx + 1>();
-  } else {
-    return Idx;
-  }
-}
-
-template <char const* str, auto Tag = [] {}>
-struct Observe {
-  friend auto get_message(ObservedFailure<count_observed<Tag>()>) { return std::string_view(str); }
-};
-
-template <auto Tag>
-bool collect_review() {
-  template for (constexpr auto Idx : std::views::iota(0U, count_observed<Tag>())) {
-    observations().emplace_back(get_message(ObservedFailure<Idx>()));
-  }
-  return true;
-}
-
-constexpr void review_violation(source_location sloc, std::string_view assertion) {
-  if consteval {
-    (void)is_complete_type(
-        substitute(^^Observe,
-                   {// std::meta::reflect_constant(sloc),
-                    std::meta::reflect_constant(define_static_string(assertion))}));
-  } else {
-    observations().emplace_back(assertion);
-  }
-}
-#endif
-
-constexpr bool assert_condition_wrapper(bool result, std::string_view message = {}) {
+constexpr bool assert_condition_wrapper(bool result, std::string_view = {}) {
   return result;
 }
 }  // namespace _assert_impl
 }  // namespace rsl
 
-// in the following macros the assertion itself is wrapped in a IILE
+// in the following macro the assertion itself is wrapped in a IILE
 // this needs to be done to support escalating expressions involving objects of consteval-only type
 
 #define constexpr_assert(...)                                                                \
@@ -148,22 +101,3 @@ constexpr bool assert_condition_wrapper(bool result, std::string_view message = 
       };                                                                                     \
     }();                                                                                     \
   } while (false)
-
-#if $uses_opt(RSL_ENABLE_REVIEW)
-#  define constexpr_review(...)                                           \
-    do {                                                                  \
-      static constexpr auto _sloc = ::rsl::source_location();             \
-      [&] {                                                               \
-        if (::rsl::_assert_impl::assert_condition_wrapper(__VA_ARGS__)) { \
-          ::rsl::_assert_impl::review_violation(_sloc, #__VA_ARGS__);     \
-        };                                                                \
-      }();                                                                \
-    } while (false)
-
-namespace {
-static bool const _rsl_review_collected = ::rsl::_assert_impl::collect_review<[] {}>();
-}
-#else
-// even with reviews disabled, ensure they are syntactically valid
-#  define constexpr_review(...) sizeof((__VA_ARGS__) ? true : false)
-#endif

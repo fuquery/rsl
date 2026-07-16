@@ -1,4 +1,4 @@
-#include <rsl/print>
+#include <rsl/experimental/print>
 struct Foo {int a; char b;};
 int main() {
   rsl::println("a {[red]1} asdf {[blue]0} b", 42, 'c');
