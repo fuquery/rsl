@@ -11,7 +11,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: ghcr.io/rsl-org/fedora_devcontainer:latest
+    container: ghcr.io/fuquery/fedora_devcontainer:latest
       
     steps:
     - name: Checkout repository
