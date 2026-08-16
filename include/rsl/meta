@@ -129,13 +129,14 @@ struct injected {
 
   static_assert(is_complete_type(^^type));
 };
+
+template <std::meta::info... Args>
+using injected_t = injected<Args...>::type;
 }  // namespace _impl
 
 consteval std::meta::info inject_aggregate(std::meta::reflection_range auto&& fields) {
-  auto wrapper = substitute(^^_impl::injected, fields | std::views::transform([](auto r) {
-                                                 return std::meta::reflect_constant(r);
-                                               }));
-  auto type    = get_member_by_name(wrapper, "type");
-  return is_type(type) ? type : throw "not a type";
+  return substitute(^^_impl::injected_t, fields | std::views::transform([](std::meta::info r) {
+                                           return std::meta::reflect_constant(r);
+                                         }));
 }
 }  // namespace rsl::meta
