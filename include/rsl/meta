@@ -135,8 +135,8 @@ using injected_t = injected<Args...>::type;
 }  // namespace _impl
 
 consteval std::meta::info inject_aggregate(std::meta::reflection_range auto&& fields) {
-  return substitute(^^_impl::injected_t, fields | std::views::transform([](std::meta::info r) {
-                                           return std::meta::reflect_constant(r);
-                                         }));
+  return dealias(substitute(^^_impl::injected_t, fields | std::views::transform([](std::meta::info r) {
+                                                   return std::meta::reflect_constant(r);
+                                                 })));
 }
 }  // namespace rsl::meta
