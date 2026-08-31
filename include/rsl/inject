@@ -1,0 +1,84 @@
+#include <meta>
+#include <string>
+#include <fstream>
+#include <filesystem>
+#include <format>
+#include <unordered_map>
+#include <set>
+
+#include <rsl/span>
+
+namespace __impl {
+
+struct InjectPath {
+  char const* msg;
+};
+}  // namespace __impl
+
+static consteval auto Inject(char const* msg) {
+  return __impl::InjectPath{std::define_static_string(msg)};
+};
+
+using injections_type = std::unordered_map<std::filesystem::path, std::string>;
+
+struct injection_info {
+  injections_type entries;
+};
+
+injection_info& injection_info() {
+  static struct injection_info injected{};
+  return injected;
+}
+
+injections_type& injections() {
+  return injection_info().entries;
+}
+
+std::string generate_cmake() {
+  std::string out{};
+  auto& info = injection_info();
+  // boilerplate
+
+  return out;
+}
+
+template <std::meta::info func>
+void process_injection() {
+  constexpr auto vec = rsl::span{std::define_static_array(std::meta::annotations_of(func))};
+  constexpr std::string_view annotationInfo =
+      std::define_static_string(std::meta::extract<__impl::InjectPath>(vec[0]).msg);
+  auto const path = std::filesystem::path(annotationInfo);
+  std::format_to(std::back_inserter(injections()[path]), "{}\n", [:func:]());
+}
+
+void generate_from_injection() {
+  const auto common_includes_file = std::filesystem::path("injected.cpp");
+  std::ofstream all_injections{common_includes_file};
+  for (const auto [path, injection] : injections()) {
+    if (path.has_parent_path())
+      std::filesystem::create_directories(path.parent_path());
+    std::ofstream file{path};
+    if (file)
+      file << injection;
+    all_injections << std::format("#include \"{}\"\n", path.string());
+  }
+}
+
+template <std::meta::info source>
+constexpr bool gather_injections() {
+  template for (constexpr auto member :
+                define_static_array(members_of(source, std::meta::access_context::current()))) {
+    if constexpr (is_function(member))
+      process_injection<member>();
+  }
+  return true;
+}
+
+#define RSLINJECT_ENABLE_NS(NS)                                                          \
+  namespace {                                                                            \
+  [[maybe_unused]] static bool const _rsl_injection_enabled = gather_injections<^^NS>(); \
+  }
+
+int main() {
+  generate_from_injection();
+}
